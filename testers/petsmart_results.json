@@ -1,0 +1,773 @@
+{
+  "criteria": {
+    "min_rating": 4.5,
+    "min_reviews": 10,
+    "listing_pages": 2
+  },
+  "all": [
+    {
+      "title": "Top Paw\u00ae Gray Velvet Orthopedic Couch Dog Bed",
+      "price": 48.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/top-paw-gray-velvet-orthopedic-couch-dog-bed-60266.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5303390?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.2,
+      "review_count": 248
+    },
+    {
+      "title": "Top Paw\u00ae Indoor/Outdoor Elevated Dog Bed",
+      "price": 28.39,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/elevated-beds/top-paw-indooroutdoor-elevated-dog-bed-52768.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5287579?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.1,
+      "review_count": 412
+    },
+    {
+      "title": "Arcadia Trail\u00ae Folded Travel Dog Bed",
+      "price": 10.0,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/elevated-beds/arcadia-trail-folded-travel-dog-bed-95005.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5374782?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.8,
+      "review_count": 10
+    },
+    {
+      "title": "Top Paw\u00ae Bone and Paw Print Cuddler Dog Bed",
+      "price": 11.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/top-paw-bone-and-paw-print-cuddler-dog-bed-91874.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5368800?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 3.8,
+      "review_count": 72
+    },
+    {
+      "title": "KONG\u00ae Orthopedic Mat Dog Bed",
+      "price": 89.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/kong-orthopedic-mat-dog-bed-58767.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5338495?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 3.7,
+      "review_count": 1139
+    },
+    {
+      "title": "Top Paw\u00ae Orthopedic Lounger Dog Bed",
+      "price": 69.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/top-paw-orthopedic-lounger-dog-bed-93970.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5302901?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.5,
+      "review_count": 237
+    },
+    {
+      "title": "KONG\u00ae 4-Sided Cuddler Dog Bed",
+      "price": 48.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/kong-4-sided-cuddler-dog-bed-58843.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5338441?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 3.5,
+      "review_count": 795
+    },
+    {
+      "title": "Top Paw\u00ae Orthopedic Memory Foam Quilt Mattress Dog Bed",
+      "price": 59.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/top-paw-orthopedic-memory-foam-quilt-mattress-dog-bed-55641.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5291318?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.1,
+      "review_count": 496
+    },
+    {
+      "title": "KONG\u00ae Durable Lounger Dog Bed",
+      "price": 89.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/pillow-beds/kong-durable-lounger-dog-bed-58416.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5298687?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 3.9,
+      "review_count": 730
+    },
+    {
+      "title": "Top Paw\u00ae Tan Basket Weave Orthopedic Couch Dog Bed",
+      "price": 48.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/top-paw-tan-basket-weave-orthopedic-couch-dog-bed-62347.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5303391?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.4,
+      "review_count": 213
+    },
+    {
+      "title": "Top Paw\u00ae Orthopedic Cuddler Striped Dog Bed",
+      "price": 26.19,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/top-paw-orthopedic-cuddler-striped-dog-bed-93978.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5310221?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.2,
+      "review_count": 287
+    },
+    {
+      "title": "Top Paw\u00ae Faux Fur Snuggler Dog Bed",
+      "price": 29.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/top-paw-faux-fur-snuggler-dog-bed-60247.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5302897?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.3,
+      "review_count": 213
+    },
+    {
+      "title": "Top Paw\u00ae Orthopedic Premium Support Oval Lounger Dog Bed",
+      "price": 69.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/top-paw-orthopedic-premium-support-oval-lounger-dog-bed-93980.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5291574?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.1,
+      "review_count": 160
+    },
+    {
+      "title": "Top Paw\u00ae Cozy Cuddler Dog Bed",
+      "price": 11.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/top-paw-cozy-cuddler-dog-bed-91880.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5368804?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.3,
+      "review_count": 60
+    },
+    {
+      "title": "Top Paw\u00ae Elevated Dog Bed",
+      "price": 79.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/elevated-beds/top-paw-elevated-dog-bed-91441.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5368455?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 5.0,
+      "review_count": 6
+    },
+    {
+      "title": "Diggs Crate Mat with Bolster - Dog Kennel Bed",
+      "price": 59.0,
+      "product_url": "https://www.petsmart.com/dog/crates-gates-and-containment/mat-and-crate-covers/diggs-crate-mat-with-bolster---dog-kennel-bed-77904.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5343008?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 3.5,
+      "review_count": 4
+    },
+    {
+      "title": "Top Paw\u00ae 2-in-1 Convertible Vehicle Booster Tote Seat; Small Dogs up to 30 lbs; Converts to dog bed",
+      "price": 84.99,
+      "product_url": "https://www.petsmart.com/dog/crates-gates-and-containment/car-booster-seats/top-paw-2-in-1-convertible-vehicle-booster-tote-seat-small-dogs-up-to--30-lbs-converts-to-dog-bed-75158.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5337410?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.8,
+      "review_count": 74
+    },
+    {
+      "title": "Top Paw\u00ae Orthopedic Lounger Dog Bed",
+      "price": 59.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/top-paw-orthopedic-lounger-dog-bed-93576.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5371718?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.5,
+      "review_count": 15
+    },
+    {
+      "title": "FurHaven Bolster Crate Bed - Dog Kennel Bed",
+      "price": 17.99,
+      "product_url": "https://www.petsmart.com/dog/crates-gates-and-containment/mat-and-crate-covers/furhaven-bolster-crate-bed---dog-kennel-bed-92703.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5370114?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.8,
+      "review_count": 11
+    },
+    {
+      "title": "Top Paw\u00ae Gray Dog Bed",
+      "price": 49.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/pillow-beds/top-paw-gray-dog-bed-91438.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5368460?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.0,
+      "review_count": 8
+    },
+    {
+      "title": "Chill Kuzzi Bolster Crate Bed - Calming Dog Kennel Bed",
+      "price": 44.99,
+      "product_url": "https://www.petsmart.com/dog/crates-gates-and-containment/mat-and-crate-covers/chill-kuzzi-bolster-crate-bed---calming-dog-kennel-bed-77898.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5343105?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.3,
+      "review_count": 87
+    },
+    {
+      "title": "FurHaven Terry & Suede Memory Foam Deluxe Dog Bed Mattress - Espresso, Gray, Large - Jumbo Plus",
+      "price": 55.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/furhaven-terry-and-suede-memory-foam-deluxe-dog-bed-mattress---espresso-gray-large---jumbo-plus-97083.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5380141?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.8,
+      "review_count": 29
+    },
+    {
+      "title": "FurHaven Cooling Gel-Top Dreamer Plush Sofa Dog Bed",
+      "price": 59.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cooling-and-heating-beds/furhaven-cooling-gel-top-dreamer-plush-sofa-dog-bed-98816.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5379535?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Bedsure\u00ae Orthopedic Bolster Dog Sofa Bed, Washable Large Dog Bed Waterproof",
+      "price": 45.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/bedsure-orthopedic-bolster-dog-sofa-bed-washable-large-dog-bed-waterproof-94045.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5373164?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 3.8,
+      "review_count": 6
+    },
+    {
+      "title": "Club Nine Pets Metro Orthopedic Dog Sofa Bed",
+      "price": 144.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/club-nine-pets-metro-orthopedic-dog-sofa-bed-94321.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5369444?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Top Paw\u00ae Print Cuddler Dog Bed",
+      "price": 11.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/top-paw-print-cuddler-dog-bed-91876.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5368799?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.3,
+      "review_count": 24
+    },
+    {
+      "title": "K&H Pet Products Original Elevated Cot Dog Bed",
+      "price": 52.98,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/elevated-beds/kandh-pet-products-original-elevated-cot-dog-bed-67219.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5318423?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.6,
+      "review_count": 478
+    },
+    {
+      "title": "K&H Pet Products Chocolate & Mesh Bolster Cot Dog Bed",
+      "price": 56.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/elevated-beds/kandh-pet-products-chocolate-and-mesh-bolster-cot-dog-bed-67217.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5318421?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.7,
+      "review_count": 175
+    },
+    {
+      "title": "Pendleton Glacier National Park Kuddler Dog Bed",
+      "price": 169.0,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/pendleton-glacier-national-park-kuddler-dog-bed-63056.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5309391?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Top Paw\u00ae Fur Snuggler Dog Bed",
+      "price": 29.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/top-paw-fur-snuggler-dog-bed-60626.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5298616?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.7,
+      "review_count": 104
+    },
+    {
+      "title": "Top Paw\u00ae Faux Fur Snuggler Cave Dog Bed",
+      "price": 29.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/top-paw-faux-fur-snuggler-cave-dog-bed-55648.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5291566?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.6,
+      "review_count": 174
+    },
+    {
+      "title": "Snoozer\u00ae Overstuffed Luxury Sofa Dog Bed",
+      "price": 202.95,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/snoozer-overstuffed-luxury-sofa-dog-bed-5728.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5289938?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.2,
+      "review_count": 48
+    },
+    {
+      "title": "Majestic Pet Aruba Rectangle Indoor & Outdoor Dog Bed",
+      "price": 68.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/pillow-beds/majestic-pet-aruba-rectangle-indoor-and-outdoor-dog-bed-27046.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5228386?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.6,
+      "review_count": 10
+    },
+    {
+      "title": "Buckle-Down Disney Sensational Six Rectangle Gusset Dog Bed",
+      "price": 59.95,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/buckle-down-disney-sensational-six-rectangle-gusset-dog-bed-99773.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5384560?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Buckle-Down Disney Lilo & Stitch Cuddler Dog Bed",
+      "price": 34.95,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/buckle-down-disney-lilo-and-stitch-cuddler-dog-bed-99772.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5384559?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Buckle-Down Disney Mickey Mouse Expressions Cuddler Dog Bed",
+      "price": 34.95,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/buckle-down-disney-mickey-mouse-expressions-cuddler-dog-bed-99771.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5384558?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Buckle-Down Disney Lilo & Stitch Rectangle Gusset Dog Bed",
+      "price": 59.95,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/buckle-down-disney-lilo-and-stitch-rectangle-gusset-dog-bed-99770.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5384529?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Buckle-Down Disney Mickey Mouse Rectangle Gusset Dog Bed",
+      "price": 62.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/buckle-down-disney-mickey-mouse-rectangle-gusset-dog-bed-99769.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5384528?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Jeep Quilted Bolster Dog Bed - Rugged Green, Large",
+      "price": 31.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/jeep-quilted-bolster-dog-bed---rugged-green-large-99668.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5384323?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Jeep Grill Cuddler Dog Bed - Adventure Orange, Small",
+      "price": 63.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/jeep-grill-cuddler-dog-bed---adventure-orange-small-99667.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5384322?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Jeep Elevated Cuddler Dog Bed - Rugged Green, Medium",
+      "price": 55.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/jeep-elevated-cuddler-dog-bed---rugged-green-medium-99665.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5384171?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "FurHaven Cooling Gel-Top Memory Foam Deluxe Dog Bed Mattress - Espresso, Gray",
+      "price": 55.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/furhaven-cooling-gel-top-memory-foam-deluxe-dog-bed-mattress---espresso-gray-97081.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5380149?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.8,
+      "review_count": 36
+    },
+    {
+      "title": "FurHaven Two-Tone Fur & Suede Oval Cuddler Cat & Dog Bed - Gray, S-XL",
+      "price": 37.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/furhaven-two-tone-fur-and-suede-oval-cuddler-cat-and-dog-bed---gray-s-xl-97084.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5380140?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.4,
+      "review_count": 5
+    },
+    {
+      "title": "Snoozer\u00ae Cozy Cave\u00ae Rectangular Ortho Dog Bed",
+      "price": 103.95,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/snoozer-cozy-cave-rectangular-ortho-dog-bed-94868.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5375919?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 1.0,
+      "review_count": 1
+    },
+    {
+      "title": "Snoozer Orthopedic Microsuede Round Cozy Cave Dog Bed",
+      "price": 102.95,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/snoozer-orthopedic-microsuede-round-cozy-cave-dog-bed-96305.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5375918?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Snoozer\u00ae Forgiveness\u2122 Cozy Cave\u00ae Fully Washable Dog Crate Bed",
+      "price": 94.95,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/snoozer-forgivenessandtrade-cozy-cave-fully-washable-dog-crate-bed-94622.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5374745?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Bedsure\u00ae Plush Calming Crate Dog Bed, Washable",
+      "price": 24.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/crate-mats/bedsure-plush-calming-crate-dog-bed-washable-94046.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5373212?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Bedsure\u00ae Cute Dog Bed for Dog & Cat, with Washable Cover",
+      "price": 39.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/bedsure-cute-dog-bed-for-dog-and-cat-with-washable-cover-94044.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5373108?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Bedsure\u00ae Pet Sofa Bed - Fluffy Dog Bed & Cat Couch with Removable Washable Cover",
+      "price": 39.99,
+      "product_url": "https://www.petsmart.com/cat/beds-and-furniture/cuddler-beds/bedsure-pet-sofa-bed---fluffy-dog-bed-and-cat-couch-with-removable-washable-cover-94613.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5373097?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 5.0,
+      "review_count": 2
+    },
+    {
+      "title": "Bedsure\u00ae Donut Bolster Dog Bed with Removable Washable Cover",
+      "price": 29.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/bedsure-donut-bolster-dog-bed-with-removable-washable-cover-94040.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5373081?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.5,
+      "review_count": 2
+    },
+    {
+      "title": "Bedsure\u00ae Dog Bed for Small Dogs, Round Cat Bed for Indoor Cats",
+      "price": 21.99,
+      "product_url": "https://www.petsmart.com/cat/beds-and-furniture/cuddler-beds/bedsure-dog-bed-for-small-dogs-round-cat-bed-for-indoor-cats-94021.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5372894?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 2.3,
+      "review_count": 3
+    },
+    {
+      "title": "Bedsure\u00ae Calming Dog Bed-Fluffy Plush Faux Fur Anti-Slip Donut Dog & Cat Bed",
+      "price": 24.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/bedsure-calming-dog-bed-fluffy-plush-faux-fur-anti-slip-donut-dog-and-cat-bed-95310.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5372778?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 5.0,
+      "review_count": 2
+    },
+    {
+      "title": "Bedsure\u00ae Orthopedic Waterproof Dog Bed with Sherpa & Oxford Fabric Removable Cover & Egg Crate Foam",
+      "price": 36.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/bedsure-orthopedic-waterproof-dog-bed-with-sherpa-and-oxford-fabric-removable-cover-and-egg-crate-foam-94006.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5372445?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 1.0,
+      "review_count": 3
+    },
+    {
+      "title": "Bedsure\u00ae Elevated Cot Dog Bed",
+      "price": 49.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/elevated-beds/bedsure-elevated-cot-dog-bed-92437.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5370160?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Club Nine Pets Dream Haven Orthopedic Dog Couch Bed",
+      "price": 219.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/club-nine-pets-dream-haven-orthopedic-dog-couch-bed-94236.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5369536?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Club Nine Pets Milo Orthopedic Elevated Dog Bed",
+      "price": 159.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/club-nine-pets-milo-orthopedic-elevated-dog-bed-94318.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5369523?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Club Nine Pets Blake Orthopedic Dog Sofa Bed",
+      "price": 209.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/-club-nine-pets-blake-orthopedic-dog-sofa-bed-94320.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5369521?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Club Nine Pets Lido Orthopedic Raised Dog Bed",
+      "price": 129.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/club-nine-pets-lido-orthopedic-raised-dog-bed-94319.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5369519?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 1.0,
+      "review_count": 1
+    },
+    {
+      "title": "Club Nine Pets Roma Elevated Orthopedic Dog Bed",
+      "price": 134.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/club-nine-pets-roma-elevated-orthopedic-dog-bed-94237.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5369514?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Club Nine Pets Uma Orthopedic Settee Dog Bed",
+      "price": 199.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/club-nine-pets-uma-orthopedic-settee-dog-bed-94312.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5369477?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Club Nine Pets Snooze Collection Orthopedic Raised Dog Bed",
+      "price": 169.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/club-nine-pets-snooze-collection-orthopedic-raised-dog-bed-94238.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5369476?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Club Nine Pets LUXE Ultra-Luxury Dog Bed",
+      "price": 239.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/club-nine-pets-luxe-ultra-luxury-dog-bed-94241.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5369419?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Top Paw\u00ae Elevated Wood Dog Bed",
+      "price": 99.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/elevated-beds/top-paw-elevated-wood-dog-bed-92034.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5368963?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.0,
+      "review_count": 2
+    },
+    {
+      "title": "Carolina Pet Sherpa Comfort Cushion Dog Bed",
+      "price": 82.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/carolina-pet-sherpa-comfort-cushion-dog-bed-89831.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5366110?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Carolina Pet Company Oval Lounger Dog Bed",
+      "price": 84.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/carolina-pet-company-oval-lounger-dog-bed-89828.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5366107?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Carolina Pet Company Microfiber & Tipped Berber Comfy Cup Dog Bed",
+      "price": 76.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/carolina-pet-company-microfiber-and-tipped-berber-comfy-cup-dog-bed-89824.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5366098?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Carolina Pet Company Faux Fur Kuddler Dog Bed",
+      "price": 145.0,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/carolina-pet-company-faux-fur-kuddler-dog-bed-89821.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5366076?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "K&H Pet Products Thermo-Pet Lounge Sleeper Indoor Heated Dog Bed",
+      "price": 52.98,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cooling-and-heating-beds/kandh-pet-products-thermo-pet-lounge-sleeper-indoor-heated-dog-bed-89147.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5364932?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.4,
+      "review_count": 12
+    },
+    {
+      "title": "K&H Pet Products Pet Cot Raised Dog Bed",
+      "price": 99.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/elevated-beds/kandh-pet-products-pet-cot-raised-dog-bed-89145.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5364930?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.6,
+      "review_count": 471
+    },
+    {
+      "title": "Pets First NBA Golden State Warriors Dog Pillow Bed",
+      "price": 33.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/pillow-beds/pets-first-nba-golden-state-warriors-dog-pillow-bed-81482.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5350110?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Midwest QuietTime MAXX Ultra-Durable Dog Bed",
+      "price": 18.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/pillow-beds/midwest-quiettime-maxx-ultra-durable-dog-bed-80421.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5349068?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 5.0,
+      "review_count": 2
+    },
+    {
+      "title": "Midwest QuietTime Deluxe Tulip Dog Bed",
+      "price": 33.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/midwest-quiettime-deluxe-tulip-dog-bed-80420.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5349053?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Midwest QuietTime Deluxe Hudson Orthopedic Dog Bed",
+      "price": 33.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/midwest-quiettime-deluxe-hudson-orthopedic-dog-bed-80419.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5349031?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 5.0,
+      "review_count": 2
+    },
+    {
+      "title": "Drymate Crate Mat - Dog Kennel Bed",
+      "price": 16.99,
+      "product_url": "https://www.petsmart.com/dog/crates-gates-and-containment/mat-and-crate-covers/drymate-crate-mat---dog-kennel-bed-80210.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5348568?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Pets First John Deere Pillow Dog Bed",
+      "price": 39.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/pillow-beds/pets-first-john-deere-pillow-dog-bed-75036.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5336987?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Snoozer\u00ae Wag Collection Starpatch/Red Diamond Luxury Cozy Cave\u00ae Round Dog Bed",
+      "price": 102.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/pillow-beds/snoozer-wag-collection-starpatchred-diamond-luxury-cozy-cave-round-dog-bed-73827.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5334972?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Snoozer\u00ae Wag Collection Ramey Oxford Luxury Cozy Cave\u00ae Round Dog Bed",
+      "price": 102.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/pillow-beds/snoozer-wag-collection-ramey-oxford-luxury-cozy-cave-round-dog-bed-74016.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5334971?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Snoozer\u00ae Wag Collection Ramey Gray Luxury Cozy Cave\u00ae Round Dog Bed",
+      "price": 102.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/pillow-beds/snoozer-wag-collection-ramey-gray-luxury-cozy-cave-round-dog-bed-74015.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5334970?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Snoozer\u00ae Wag Collection Pedigree Storm Luxury Cozy Cave\u00ae Round Dog Bed",
+      "price": 102.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/pillow-beds/snoozer-wag-collection-pedigree-storm-luxury-cozy-cave-round-dog-bed-74014.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5334969?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    },
+    {
+      "title": "Snoozer\u00ae Wag Collection Pedigree Denim Luxury Cozy Cave\u00ae Round Dog Bed",
+      "price": 102.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/pillow-beds/snoozer-wag-collection-pedigree-denim-luxury-cozy-cave-round-dog-bed-74013.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5334968?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 0.0,
+      "review_count": 0
+    }
+  ],
+  "eligible": [
+    {
+      "title": "Top Paw\u00ae 2-in-1 Convertible Vehicle Booster Tote Seat; Small Dogs up to 30 lbs; Converts to dog bed",
+      "price": 84.99,
+      "product_url": "https://www.petsmart.com/dog/crates-gates-and-containment/car-booster-seats/top-paw-2-in-1-convertible-vehicle-booster-tote-seat-small-dogs-up-to--30-lbs-converts-to-dog-bed-75158.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5337410?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.8,
+      "review_count": 74
+    },
+    {
+      "title": "FurHaven Cooling Gel-Top Memory Foam Deluxe Dog Bed Mattress - Espresso, Gray",
+      "price": 55.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/furhaven-cooling-gel-top-memory-foam-deluxe-dog-bed-mattress---espresso-gray-97081.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5380149?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.8,
+      "review_count": 36
+    },
+    {
+      "title": "FurHaven Terry & Suede Memory Foam Deluxe Dog Bed Mattress - Espresso, Gray, Large - Jumbo Plus",
+      "price": 55.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/furhaven-terry-and-suede-memory-foam-deluxe-dog-bed-mattress---espresso-gray-large---jumbo-plus-97083.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5380141?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.8,
+      "review_count": 29
+    },
+    {
+      "title": "FurHaven Bolster Crate Bed - Dog Kennel Bed",
+      "price": 17.99,
+      "product_url": "https://www.petsmart.com/dog/crates-gates-and-containment/mat-and-crate-covers/furhaven-bolster-crate-bed---dog-kennel-bed-92703.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5370114?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.8,
+      "review_count": 11
+    },
+    {
+      "title": "Arcadia Trail\u00ae Folded Travel Dog Bed",
+      "price": 10.0,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/elevated-beds/arcadia-trail-folded-travel-dog-bed-95005.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5374782?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.8,
+      "review_count": 10
+    },
+    {
+      "title": "K&H Pet Products Chocolate & Mesh Bolster Cot Dog Bed",
+      "price": 56.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/elevated-beds/kandh-pet-products-chocolate-and-mesh-bolster-cot-dog-bed-67217.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5318421?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.7,
+      "review_count": 175
+    },
+    {
+      "title": "Top Paw\u00ae Fur Snuggler Dog Bed",
+      "price": 29.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/top-paw-fur-snuggler-dog-bed-60626.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5298616?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.7,
+      "review_count": 104
+    },
+    {
+      "title": "K&H Pet Products Original Elevated Cot Dog Bed",
+      "price": 52.98,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/elevated-beds/kandh-pet-products-original-elevated-cot-dog-bed-67219.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5318423?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.6,
+      "review_count": 478
+    },
+    {
+      "title": "K&H Pet Products Pet Cot Raised Dog Bed",
+      "price": 99.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/elevated-beds/kandh-pet-products-pet-cot-raised-dog-bed-89145.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5364930?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.6,
+      "review_count": 471
+    },
+    {
+      "title": "Top Paw\u00ae Faux Fur Snuggler Cave Dog Bed",
+      "price": 29.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/cuddler-beds/top-paw-faux-fur-snuggler-cave-dog-bed-55648.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5291566?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.6,
+      "review_count": 174
+    },
+    {
+      "title": "Majestic Pet Aruba Rectangle Indoor & Outdoor Dog Bed",
+      "price": 68.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/pillow-beds/majestic-pet-aruba-rectangle-indoor-and-outdoor-dog-bed-27046.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5228386?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.6,
+      "review_count": 10
+    },
+    {
+      "title": "Top Paw\u00ae Orthopedic Lounger Dog Bed",
+      "price": 69.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/top-paw-orthopedic-lounger-dog-bed-93970.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5302901?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.5,
+      "review_count": 237
+    },
+    {
+      "title": "Top Paw\u00ae Orthopedic Lounger Dog Bed",
+      "price": 59.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/top-paw-orthopedic-lounger-dog-bed-93576.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5371718?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.5,
+      "review_count": 15
+    }
+  ],
+  "top": [
+    {
+      "title": "Top Paw\u00ae 2-in-1 Convertible Vehicle Booster Tote Seat; Small Dogs up to 30 lbs; Converts to dog bed",
+      "price": 84.99,
+      "product_url": "https://www.petsmart.com/dog/crates-gates-and-containment/car-booster-seats/top-paw-2-in-1-convertible-vehicle-booster-tote-seat-small-dogs-up-to--30-lbs-converts-to-dog-bed-75158.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5337410?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.8,
+      "review_count": 74
+    },
+    {
+      "title": "FurHaven Cooling Gel-Top Memory Foam Deluxe Dog Bed Mattress - Espresso, Gray",
+      "price": 55.99,
+      "product_url": "https://www.petsmart.com/dog/beds-and-furniture/orthopedic-beds/furhaven-cooling-gel-top-memory-foam-deluxe-dog-bed-mattress---espresso-gray-97081.html",
+      "image_url": "https://s7d2.scene7.com/is/image/PetSmart/5380149?$sclp-prd-main_large$&fmt=webp&qlt=80",
+      "avg_rating": 4.8,
+      "review_count": 36
+    }
+  ]
+}

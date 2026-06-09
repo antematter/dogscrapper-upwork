@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.trust-high {
+  background: #dcfce7;
+  color: #15803d;
+}
+.trust-mid {
+  background: #fef9c3;
+  color: #a16207;
+}
+.trust-low {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.trust-none {
+  background: #f1f5f9;
+  color: #64748b;
+}
