@@ -1,87 +1,86 @@
-import asyncio
+import html
+import json
 import logging
+import os
 import re
-import random
-import time
-from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import quote_plus
 
-from playwright.async_api import ElementHandle, Page, async_playwright
+import httpx
+from dotenv import load_dotenv
 
-from app.scrapers.base import BaseScraper, ProductRaw
+from app.scrapers.base import BaseScraper, ProductRaw, _FETCH_PAGE_CAP
+
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(_BACKEND_ROOT / ".env")
 
 logger = logging.getLogger(__name__)
 
 LISTING_URL = "https://www.target.com/c/dog-beds-pet-supplies/-/N-5xt44"
 SEARCH_URL = "https://www.target.com/s?searchTerm={query}"
 
-_PRODUCT_LINK_SELECTOR = "a[href*='/A-']"
 _PRODUCT_PATH_RE = re.compile(r"/p/[a-z0-9-]+/-/A-\d+", re.IGNORECASE)
-_GRID_WAIT_SELECTORS = (
-    _PRODUCT_LINK_SELECTOR,
-    "[class*='ProductCard']",
-    "[class*='product-card']",
-)
-
-_DEBUG_DIR = Path(__file__).resolve().parents[2] / "debug_scrapes" / "target"
-
-_CONSENT_SELECTORS = (
-    "#onetrust-accept-btn-handler",
-    "button:has-text('Accept cookies')",
-    "button:has-text('Accept all')",
-    "button:has-text('Accept')",
-)
-
 _SPONSORED_MARKERS = ("TCID=OGS", "AFID=google", "sponsored=1")
+_CARD_WRAPPER_SPLIT = 'data-test="@web/ProductCard/ProductCardVariantWrapper"'
+_PRODUCT_CARD_TITLE_RE = re.compile(
+    r'<a aria-label="([^"]+)"\s+data-test="@web/ProductCard/title"[^>]*href="(/p/[^"]+/A-\d+)',
+    re.I | re.S,
+)
+_RATING_ARIA_RE = re.compile(
+    r'aria-label="([\d.]+) stars with ([\d,]+) ratings"',
+    re.I,
+)
 
-_LINK_EXTRACT_JS = """(el) => {
-    const href = el.href || el.getAttribute('href') || '';
-    if (!href.includes('/A-')) return null;
-    if (/TCID=OGS|AFID=google|sponsored=1/i.test(href)) return null;
+# Env (backend/.env) — Target via ScraperAPI only:
+#   SCRAPERAPI_KEY — required
+#   TARGET_SCRAPERAPI_ULTRA_PREMIUM — default true
+#   TARGET_SCRAPERAPI_RENDER — default true (Target PLP needs JS render unlike Chewy)
+#   TARGET_SCRAPERAPI_PREMIUM — fallback if ultra disabled
+#   TARGET_SCRAPERAPI_TIMEOUT — seconds (default 180)
+#   TARGET_SCRAPERAPI_COUNTRY — e.g. us (default us)
+#   TARGET_SCRAPERAPI_TRY_REDSKY — default true
 
-    let title = (el.innerText || '').replace(/\\s+/g, ' ').trim();
-    const img = el.querySelector('img') || el.closest('motion.div, li, article, div')?.querySelector('img');
-    if ((!title || title.length < 4) && img?.alt) {
-        title = (img.alt || '').trim();
-    }
-    if (!title) {
-        const labelled = el.getAttribute('aria-label');
-        if (labelled) title = labelled.trim();
-    }
 
-    let root = el.closest('li, article, [class*="ProductCard"], [class*="product"]') || el.parentElement;
-    if (!root) root = el;
-    let priceText = '';
-    let ratingRaw = '';
-    let reviewRaw = '';
-    const imageUrl = img?.src || img?.getAttribute('data-src') || null;
+def _env_truthy(name: str, *, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None or not str(raw).strip():
+        return default
+    return str(raw).strip().lower() in ("1", "true", "yes", "on")
 
-    for (let depth = 0; depth < 10 && root; depth++) {
-        const stars = root.querySelector('[aria-label*="out of"], [aria-label*="star"]');
-        if (stars && !ratingRaw) {
-            ratingRaw = stars.getAttribute('aria-label') || stars.textContent || '';
-        }
-        if (!priceText) {
-            const text = root.innerText || '';
-            const m = text.match(/\\$\\s?\\d+[\\d,.]*/);
-            if (m) priceText = m[0];
-        }
-        if (!reviewRaw) {
-            const rev = root.querySelector('[class*="review"], [class*="Review"]');
-            if (rev) reviewRaw = rev.textContent || '';
-        }
-        root = root.parentElement;
-    }
 
-    return { href, title, priceText, ratingRaw, reviewRaw, imageUrl };
-}"""
+def _target_scraperapi_country() -> str:
+    return (os.environ.get("TARGET_SCRAPERAPI_COUNTRY") or "us").strip() or "us"
+
+
+def _target_scraperapi_extra_params() -> dict[str, str]:
+    params: dict[str, str] = {}
+    if _env_truthy("TARGET_SCRAPERAPI_ULTRA_PREMIUM", default=True):
+        params["ultra_premium"] = "true"
+    elif _env_truthy("TARGET_SCRAPERAPI_PREMIUM"):
+        params["premium"] = "true"
+    if _env_truthy("TARGET_SCRAPERAPI_RENDER", default=True):
+        params["render"] = "true"
+    return params
+
+
+def _target_scraperapi_timeout_sec() -> float:
+    try:
+        return float(os.environ.get("TARGET_SCRAPERAPI_TIMEOUT") or "180")
+    except ValueError:
+        return 180.0
+
+
+def _target_scraperapi_try_redsky() -> bool:
+    return _env_truthy("TARGET_SCRAPERAPI_TRY_REDSKY", default=True)
 
 
 def _listing_url(query: str) -> str:
+    """Search URL works reliably with render; category PLP often yields 0 relevant rows."""
     q = (query or "").strip().lower()
     if not q or q in ("dog bed", "dog beds", "dog_beds"):
-        return LISTING_URL
-    return SEARCH_URL.format(query=query.replace(" ", "+"))
+        return SEARCH_URL.format(query="dog+bed")
+    return SEARCH_URL.format(query=quote_plus(q.replace(" ", "+")))
 
 
 def _is_sponsored_context(snippet: str) -> bool:
@@ -93,299 +92,642 @@ def _title_from_path(path: str) -> str:
     return slug.replace("-", " ").strip().title()
 
 
+def _product_url_from_path(path: str) -> str:
+    path = path.split("?")[0].split("#")[0]
+    return path if path.startswith("http") else f"https://www.target.com{path}"
+
+
+def _normalize_target_image_url(raw: str) -> Optional[str]:
+    if not raw or not str(raw).strip():
+        return None
+    url = str(raw).strip()
+    if url.startswith("//"):
+        return f"https:{url}"
+    if url.startswith("/"):
+        return f"https://www.target.com{url}"
+    if url.startswith("http"):
+        return url
+    return None
+
+
+def _normalize_price_value(raw: Any) -> Optional[float]:
+    if raw is None:
+        return None
+    m = re.search(r"\d+\.?\d*", str(raw).replace(",", ""))
+    return float(m.group()) if m else None
+
+
+def _target_parent_key(item: dict[str, Any]) -> str:
+    parent = item.get("parent_tcin") or item.get("parent")
+    if parent is not None and str(parent).strip():
+        return str(parent).strip()
+    tcin = item.get("tcin") or item.get("product_id") or item.get("productId")
+    return str(tcin).strip() if tcin is not None else ""
+
+
+def _extract_ratings_from_obj(o: dict[str, Any]) -> tuple[Optional[float], int]:
+    avg_rating: Optional[float] = None
+    review_count = 0
+
+    rar = o.get("ratings_and_reviews") or o.get("ratingsAndReviews")
+    if isinstance(rar, dict):
+        stats = rar.get("statistics") or rar.get("rating") or {}
+        if isinstance(stats, dict):
+            rating_block = stats.get("rating") if isinstance(stats.get("rating"), dict) else stats
+            if isinstance(rating_block, dict):
+                avg_rating = _normalize_price_value(
+                    rating_block.get("average") or rating_block.get("value")
+                )
+                rc = rating_block.get("count") or rating_block.get("total_count")
+                if rc is not None:
+                    try:
+                        review_count = int(rc)
+                    except (TypeError, ValueError):
+                        pass
+
+    agg = o.get("aggregateRating")
+    if isinstance(agg, dict):
+        if avg_rating is None:
+            avg_rating = _normalize_price_value(agg.get("ratingValue"))
+        if not review_count:
+            try:
+                review_count = int(agg.get("reviewCount") or 0)
+            except (TypeError, ValueError):
+                pass
+
+    return avg_rating, review_count
+
+
+def _walk_redsky_products(
+    data: Any,
+    out: list[dict[str, Any]],
+) -> None:
+    """Collect product dicts from nested Target/redsky JSON."""
+
+    def visit(o: Any, depth: int = 0) -> None:
+        if depth > 40:
+            return
+        if isinstance(o, dict):
+            tcin = o.get("tcin") or o.get("product_id") or o.get("productId")
+            title = None
+            item = o.get("item") if isinstance(o.get("item"), dict) else o
+            if isinstance(item, dict):
+                desc = item.get("product_description") or item.get("productDescription")
+                if isinstance(desc, dict):
+                    title = desc.get("title") or desc.get("downstream_description")
+                if not title:
+                    title = item.get("title") or item.get("name")
+            if not title:
+                title = o.get("title") or o.get("name") or o.get("product_title")
+
+            url = o.get("canonical_url") or o.get("canonicalUrl") or o.get("url")
+            if isinstance(url, str) and "/p/" in url and "/A-" in url:
+                pass
+            elif tcin:
+                slug = ""
+                if isinstance(o.get("product_description"), dict):
+                    slug = str(o["product_description"].get("title") or "")
+                if slug:
+                    slug_part = re.sub(r"[^a-z0-9]+", "-", slug.lower()).strip("-")[:80]
+                    url = f"/p/{slug_part}/-/A-{tcin}" if slug_part else f"/p/-/A-{tcin}"
+                else:
+                    url = f"/p/-/A-{tcin}"
+
+            price = None
+            price_obj = o.get("price") or o.get("current_retail") or o.get("formatted_current_price")
+            if isinstance(price_obj, dict):
+                price = _normalize_price_value(
+                    price_obj.get("current_retail")
+                    or price_obj.get("value")
+                    or price_obj.get("formatted_current_price")
+                )
+            else:
+                price = _normalize_price_value(price_obj)
+
+            img = ""
+            for ik in ("primary_image_url", "image_url", "imageUrl", "image"):
+                iv = o.get(ik)
+                if isinstance(iv, str) and iv:
+                    img = iv
+                    break
+                if isinstance(iv, dict) and isinstance(iv.get("url"), str):
+                    img = iv["url"]
+                    break
+
+            avg_rating, review_count = _extract_ratings_from_obj(o)
+
+            if isinstance(title, str) and title.strip() and isinstance(url, str) and "/A-" in url:
+                full = _product_url_from_path(url)
+                parent_key = _target_parent_key(o)
+                out.append(
+                    {
+                        "title": title.strip()[:200],
+                        "href": full,
+                        "price": price,
+                        "imageUrl": _normalize_target_image_url(img),
+                        "avg_rating": avg_rating,
+                        "review_count": review_count,
+                        "variant_group_id": parent_key or None,
+                    }
+                )
+
+            for v in o.values():
+                visit(v, depth + 1)
+        elif isinstance(o, list):
+            for x in o:
+                visit(x, depth + 1)
+
+    visit(data)
+
+
+def _best_tiles_by_parent(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    best: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    no_parent: list[dict[str, Any]] = []
+
+    for item in items:
+        pk = str(item.get("variant_group_id") or "").strip()
+        if not pk:
+            no_parent.append(item)
+            continue
+        if pk not in best:
+            best[pk] = item
+            order.append(pk)
+
+    return [best[pk] for pk in order] + no_parent
+
+
+def _tile_to_raw(item: dict[str, Any]) -> Optional[dict[str, Any]]:
+    href = item.get("href") or item.get("product_url") or ""
+    if not href or _is_sponsored_context(str(href)):
+        return None
+    title = (item.get("title") or "").strip()
+    if not title or len(title) < 3:
+        return None
+
+    review_count = item.get("review_count") or 0
+    try:
+        review_count = int(review_count)
+    except (TypeError, ValueError):
+        review_count = 0
+
+    avg_rating = item.get("avg_rating")
+    if avg_rating is not None:
+        try:
+            avg_rating = float(avg_rating)
+        except (TypeError, ValueError):
+            avg_rating = None
+
+    return {
+        "href": _product_url_from_path(str(href)),
+        "title": title[:200],
+        "price": item.get("price"),
+        "avg_rating": avg_rating,
+        "review_count": review_count,
+        "imageUrl": item.get("imageUrl") or item.get("image_url"),
+        "variant_group_id": item.get("variant_group_id"),
+    }
+
+
 def _product_from_raw(
     scraper: BaseScraper, raw: dict, seen_urls: set[str]
 ) -> ProductRaw | None:
-    href = (raw.get("href") or "").split("?")[0]
-    if not href or _is_sponsored_context(href):
+    href = raw.get("href") or raw.get("product_url") or ""
+    if not href or _is_sponsored_context(str(href)):
         return None
 
-    product_url = (
-        href if href.startswith("http") else f"https://www.target.com{href}"
-    )
+    product_url = _product_url_from_path(str(href))
     if product_url in seen_urls:
         return None
     seen_urls.add(product_url)
 
-    title = (raw.get("title") or "").strip()
+    title = html.unescape((raw.get("title") or "").strip())
     if not title or len(title) < 3:
         return None
 
-    review_raw = raw.get("reviewRaw") or "0"
-    review_count = 0
-    m = re.search(r"\d+", str(review_raw).replace(",", ""))
-    if m:
-        review_count = int(m.group())
+    review_count = raw.get("review_count") or 0
+    try:
+        review_count = int(review_count)
+    except (TypeError, ValueError):
+        review_count = 0
+
+    avg_rating = raw.get("avg_rating")
+    if avg_rating is not None:
+        try:
+            avg_rating = float(avg_rating)
+        except (TypeError, ValueError):
+            avg_rating = scraper.normalize_rating(str(avg_rating))
+
+    price = raw.get("price")
+    if price is None:
+        price = scraper.normalize_price(raw.get("priceText") or "")
+
+    variant_group_id = raw.get("variant_group_id")
+    if variant_group_id is not None:
+        variant_group_id = str(variant_group_id).strip() or None
+
+    image = raw.get("imageUrl") or raw.get("image_url")
+    image_url = _normalize_target_image_url(str(image)) if image else None
 
     return ProductRaw(
         source_site=scraper.SITE_NAME,
         title=title[:200],
-        price=scraper.normalize_price(raw.get("priceText") or ""),
-        avg_rating=scraper.normalize_rating(raw.get("ratingRaw") or ""),
+        price=price,
+        avg_rating=avg_rating,
         review_count=review_count,
         product_url=product_url,
-        image_url=raw.get("imageUrl"),
+        image_url=image_url,
+        variant_group_id=variant_group_id,
         scrape_status="ok",
     )
 
 
-def _extract_embedded_from_html(
-    html: str, limit: int, seen_urls: set[str], scraper: BaseScraper
+def _rows_from_redsky_walk(
+    data: Any,
+    scraper: BaseScraper,
+    seen_urls: set[str],
+    limit: int,
 ) -> list[ProductRaw]:
-    """Fallback when CSR grid never mounts anchors — parse /p/.../A- paths from HTML."""
+    tiles: list[dict[str, Any]] = []
+    _walk_redsky_products(data, tiles)
     products: list[ProductRaw] = []
-    for path in dict.fromkeys(_PRODUCT_PATH_RE.findall(html)):
+    for item in _best_tiles_by_parent(tiles):
         if len(products) >= limit:
             break
-        idx = html.find(path)
-        if idx < 0:
+        raw = _tile_to_raw(item)
+        if not raw:
             continue
-        window = html[max(0, idx - 100) : idx + len(path) + 250]
-        if _is_sponsored_context(window):
-            continue
-
-        title = _title_from_path(path)
-        title_m = re.search(
-            re.escape(path) + r"[^>]*\\u003e([^\\u003c]{5,120})\\u003c",
-            html[idx : idx + 600],
-        )
-        if title_m:
-            candidate = title_m.group(1).strip()
-            if len(candidate.split()) >= 2:
-                title = candidate
-
-        product_url = f"https://www.target.com{path}"
-        if product_url in seen_urls:
-            continue
-
-        item = _product_from_raw(
-            scraper,
-            {"href": product_url, "title": title, "priceText": "", "ratingRaw": "", "reviewRaw": "0"},
-            seen_urls,
-        )
-        if item:
-            products.append(item)
+        row = _product_from_raw(scraper, raw, seen_urls)
+        if row:
+            products.append(row)
     return products
 
 
-async def _dismiss_consent(page: Page) -> None:
-    for sel in _CONSENT_SELECTORS:
-        try:
-            loc = page.locator(sel).first
-            if await loc.is_visible(timeout=1200):
-                await loc.click(timeout=3000)
-                await asyncio.sleep(random.uniform(0.3, 0.7))
-                return
-        except Exception:
-            continue
-
-
-async def _debug_instrumentation(page: Page, label: str) -> dict:
-    """Log page shell vs hydrated grid signals; save screenshot for inspection."""
-    html = await page.content()
-    content_len = len(html)
-    anchor_count = await page.evaluate(
-        """() => document.querySelectorAll("a[href*='/A-']").length"""
-    )
-    product_anchor_count = await _count_product_links(page)
-    embedded_paths = len(dict.fromkeys(_PRODUCT_PATH_RE.findall(html)))
-
-    screenshot_path: str | None = None
+def _products_from_next_data_html(
+    html: str,
+    scraper: BaseScraper,
+    seen_urls: set[str],
+    limit: int,
+) -> list[ProductRaw]:
+    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
+    if not m:
+        return []
     try:
-        _DEBUG_DIR.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        path = _DEBUG_DIR / f"{label}_{ts}.png"
-        await page.screenshot(path=str(path), full_page=False)
-        screenshot_path = str(path)
-    except Exception as exc:
-        logger.warning("Target debug screenshot failed: %s", exc)
-
-    logger.info(
-        "Target scrape debug [%s]: content_len=%s anchors(/A-)=%s "
-        "unique_product_links=%s embedded_paths=%s screenshot=%s url=%s",
-        label,
-        content_len,
-        anchor_count,
-        product_anchor_count,
-        embedded_paths,
-        screenshot_path,
-        page.url,
-    )
-    return {
-        "label": label,
-        "content_length": content_len,
-        "anchors_a_pattern": anchor_count,
-        "unique_product_links": product_anchor_count,
-        "embedded_paths": embedded_paths,
-        "screenshot": screenshot_path,
-        "url": page.url,
-    }
+        nd = json.loads(m.group(1))
+    except json.JSONDecodeError:
+        return []
+    return _rows_from_redsky_walk(nd, scraper, seen_urls, limit)
 
 
-async def _scroll_to_hydrate(page: Page) -> None:
-    for _ in range(5):
-        await page.evaluate(
-            "() => window.scrollBy(0, Math.max(400, window.innerHeight * 0.85))"
-        )
-        await asyncio.sleep(random.uniform(0.35, 0.75))
-    await page.keyboard.press("End")
-    await asyncio.sleep(random.uniform(0.8, 1.2))
-    await page.keyboard.press("Home")
-    await asyncio.sleep(random.uniform(0.4, 0.8))
-    for _ in range(3):
-        await page.keyboard.press("End")
-        await asyncio.sleep(random.uniform(0.6, 1.0))
-
-
-async def _count_product_links(page: Page) -> int:
-    return await page.evaluate(
-        """() => {
-            const seen = new Set();
-            for (const a of document.querySelectorAll("a[href*='/A-']")) {
-                const h = a.href || a.getAttribute('href') || '';
-                if (/TCID=OGS|AFID=google|sponsored=1/i.test(h)) continue;
-                const path = h.split('?')[0];
-                if (!path || seen.has(path)) continue;
-                if (path.includes('/p/') || /\\/A-\\d+/i.test(path)) seen.add(path);
-            }
-            return seen.size;
-        }"""
-    )
-
-
-async def _wait_for_hydrated_grid(page: Page, timeout_sec: float = 50) -> int:
-    """Wait for CSR product links; poll scroll until /A- anchors appear."""
-    for sel in _GRID_WAIT_SELECTORS:
-        try:
-            await page.wait_for_selector(sel, state="visible", timeout=12_000)
-            break
-        except Exception:
-            continue
-
-    try:
-        await page.wait_for_function(
-            """() => {
-                let n = 0;
-                const seen = new Set();
-                for (const a of document.querySelectorAll("a[href*='/A-']")) {
-                    const h = a.href || a.getAttribute('href') || '';
-                    if (/TCID=OGS|AFID=google|sponsored=1/i.test(h)) continue;
-                    const path = h.split('?')[0];
-                    if (!path || seen.has(path)) continue;
-                    if (path.includes('/p/') || /\\/A-\\d+/i.test(path)) {
-                        seen.add(path); n++;
-                    }
-                }
-                return n >= 3;
-            }""",
-            timeout=15_000,
-        )
-    except Exception:
-        pass
-
-    deadline = time.monotonic() + timeout_sec
-    best_n = 0
-    while time.monotonic() < deadline:
-        await _dismiss_consent(page)
-        await _scroll_to_hydrate(page)
-        n = await _count_product_links(page)
-        best_n = max(best_n, n)
-        if n >= 3:
-            return n
-        await asyncio.sleep(random.uniform(1.0, 1.8))
-    return best_n
-
-
-async def _collect_product_links(page: Page, limit: int) -> list[ElementHandle]:
-    """Product anchors and card wrappers — no data-test attributes."""
-    handles = await page.query_selector_all(_PRODUCT_LINK_SELECTOR)
-    filtered: list[ElementHandle] = []
-    for handle in handles:
-        href = await handle.get_attribute("href") or ""
-        if _is_sponsored_context(href):
-            continue
-        filtered.append(handle)
-    if filtered:
-        return filtered[: max(limit * 3, limit)]
-
-    for sel in _GRID_WAIT_SELECTORS[1:]:
-        cards = await page.query_selector_all(sel)
-        if cards:
-            return cards[: max(limit * 2, limit)]
-    return []
-
-
-async def _parse_dom_links(
-    links: list[ElementHandle],
+def _products_from_json_blobs(
+    html: str,
     scraper: BaseScraper,
     seen_urls: set[str],
     limit: int,
 ) -> list[ProductRaw]:
     products: list[ProductRaw] = []
-    for link in links:
+    for blob in re.findall(
+        r'<script[^>]*type="application/json"[^>]*>(.*?)</script>', html, re.S
+    ):
+        if len(blob) < 200 or "tcin" not in blob:
+            continue
+        try:
+            data = json.loads(blob)
+        except json.JSONDecodeError:
+            continue
+        batch = _rows_from_redsky_walk(data, scraper, seen_urls, limit - len(products))
+        products.extend(batch)
         if len(products) >= limit:
             break
+    return products[:limit]
+
+
+def _products_from_ld_json(
+    html: str,
+    scraper: BaseScraper,
+    seen_urls: set[str],
+    limit: int,
+) -> list[ProductRaw]:
+    products: list[ProductRaw] = []
+    for blob in re.findall(
+        r'<script[^>]+type="application/ld\+json"[^>]*>(.*?)</script>', html, re.S
+    ):
         try:
-            raw = await link.evaluate(_LINK_EXTRACT_JS)
-            if not raw:
-                continue
-            item = _product_from_raw(scraper, raw, seen_urls)
-            if item:
-                products.append(item)
-        except Exception:
+            obj = json.loads(blob)
+        except json.JSONDecodeError:
             continue
+
+        items: list[dict[str, Any]] = []
+        if isinstance(obj, dict):
+            if obj.get("@type") == "ItemList":
+                items = [
+                    e.get("item") or e
+                    for e in obj.get("itemListElement", [])
+                    if isinstance(e, dict)
+                ]
+            elif obj.get("@type") == "Product":
+                items = [obj]
+
+        for item in items:
+            if len(products) >= limit or not isinstance(item, dict):
+                continue
+            url_p = item.get("url") or item.get("@id") or ""
+            if not isinstance(url_p, str) or "/A-" not in url_p:
+                continue
+            agg = item.get("aggregateRating") or {}
+            offer = item.get("offers") or {}
+            if isinstance(offer, list):
+                offer = offer[0] if offer else {}
+            row = _product_from_raw(
+                scraper,
+                {
+                    "href": url_p,
+                    "title": (item.get("name") or "")[:200],
+                    "price": _normalize_price_value(
+                        offer.get("price") if isinstance(offer, dict) else None
+                    ),
+                    "avg_rating": _normalize_price_value(agg.get("ratingValue")),
+                    "review_count": int(agg.get("reviewCount") or 0),
+                    "imageUrl": item.get("image")
+                    if isinstance(item.get("image"), str)
+                    else None,
+                },
+                seen_urls,
+            )
+            if row:
+                products.append(row)
     return products
+
+
+def _products_from_product_cards(
+    html: str,
+    scraper: BaseScraper,
+    seen_urls: set[str],
+    limit: int,
+) -> list[ProductRaw]:
+    """Parse hydrated ProductCard markup from rendered PLP HTML."""
+    products: list[ProductRaw] = []
+    if _CARD_WRAPPER_SPLIT not in html:
+        return products
+
+    for card in html.split(_CARD_WRAPPER_SPLIT)[1:]:
+        if len(products) >= limit:
+            break
+        title_m = _PRODUCT_CARD_TITLE_RE.search(card)
+        if not title_m:
+            continue
+        title = title_m.group(1).strip()
+        href = title_m.group(2).split("?")[0].split("#")[0]
+        rating_m = _RATING_ARIA_RE.search(card)
+        avg_rating: Optional[float] = None
+        review_count = 0
+        if rating_m:
+            avg_rating = _normalize_price_value(rating_m.group(1))
+            try:
+                review_count = int(rating_m.group(2).replace(",", ""))
+            except (TypeError, ValueError):
+                review_count = 0
+
+        prices = re.findall(r"\$[\d.]+", card)
+        price = scraper.normalize_price(prices[0]) if prices else None
+        img_m = re.search(r'src="(https://target\.scene7\.com[^"]+)"', card)
+        image_url = _normalize_target_image_url(img_m.group(1)) if img_m else None
+
+        row = _product_from_raw(
+            scraper,
+            {
+                "href": href,
+                "title": title,
+                "price": price,
+                "avg_rating": avg_rating,
+                "review_count": review_count,
+                "imageUrl": image_url,
+            },
+            seen_urls,
+        )
+        if row:
+            products.append(row)
+    return products
+
+
+def _products_from_path_regex(
+    html: str,
+    scraper: BaseScraper,
+    seen_urls: set[str],
+    limit: int,
+) -> list[ProductRaw]:
+    products: list[ProductRaw] = []
+    for path in dict.fromkeys(_PRODUCT_PATH_RE.findall(html)):
+        if len(products) >= limit:
+            break
+        idx = html.find(path)
+        window = html[max(0, idx - 120) : idx + len(path) + 200] if idx >= 0 else path
+        if _is_sponsored_context(window):
+            continue
+        title = _title_from_path(path)
+        row = _product_from_raw(
+            scraper,
+            {
+                "href": path,
+                "title": title,
+                "priceText": "",
+                "avg_rating": None,
+                "review_count": 0,
+            },
+            seen_urls,
+        )
+        if row:
+            products.append(row)
+    return products
+
+
+def _parse_target_html(
+    html: str,
+    scraper: BaseScraper,
+    seen_urls: set[str],
+    limit: int,
+) -> list[ProductRaw]:
+    for parser in (
+        _products_from_next_data_html,
+        _products_from_json_blobs,
+        _products_from_ld_json,
+        _products_from_product_cards,
+        _products_from_path_regex,
+    ):
+        batch = parser(html, scraper, seen_urls, limit)
+        if batch:
+            return batch[:limit]
+    return []
+
+
+def _extract_redsky_key(html: str) -> Optional[str]:
+    for pat in (
+        r'"apiKey"\s*:\s*"([a-f0-9-]{8,})"',
+        r"key=([a-f0-9-]{8,})",
+        r'"key"\s*:\s*"([a-f0-9-]{8,})"',
+    ):
+        m = re.search(pat, html, re.I)
+        if m:
+            return m.group(1)
+    return None
+
+
+def _build_redsky_search_url(key: str, *, keyword: str = "dog bed", count: int = 24) -> str:
+    q = quote_plus(keyword)
+    return (
+        "https://redsky.target.com/redsky_aggregations/v1/web/plp_search_v2"
+        f"?key={key}&channel=WEB&count={count}&keyword={q}"
+        "&offset=0&page=%2Fs&platform=desktop&visitor_id=0"
+        "&pricing_store_id=3991&store_ids=3991"
+    )
+
+
+def _target_block_detected(html: str) -> bool:
+    low = (html or "").lower()
+    if len(html or "") < 8_000:
+        return True
+    if "access denied" in low or "robot or human" in low:
+        return True
+    if "captcha" in low and len(html) < 50_000:
+        return True
+    return False
+
+
+async def _target_scraperapi_get(
+    client: httpx.AsyncClient,
+    api_key: str,
+    target_url: str,
+) -> tuple[Optional[str], int]:
+    params: dict[str, str] = {
+        "api_key": api_key,
+        "url": target_url,
+        "country_code": _target_scraperapi_country(),
+        **_target_scraperapi_extra_params(),
+    }
+    resp = await client.get("https://api.scraperapi.com/", params=params)
+    body = resp.text if resp.content else ""
+    if resp.status_code != 200:
+        snippet = body[:260].replace("\n", " ")
+        logger.warning(
+            "Target ScraperAPI HTTP %s for %s ... %s",
+            resp.status_code,
+            target_url[:100],
+            snippet,
+        )
+        return None, resp.status_code
+    return body, resp.status_code
+
+
+def products_from_html_for_tests(html: str, limit: int = 20) -> list[ProductRaw]:
+    """Public for tests: parse Target PLP HTML into ProductRaw rows."""
+    scraper = TargetScraper()
+    seen: set[str] = set()
+    return _parse_target_html(html, scraper, seen, limit)
+
+
+def products_from_redsky_for_tests(data: dict[str, Any], limit: int = 20) -> list[ProductRaw]:
+    """Public for tests: parse redsky JSON dict into ProductRaw rows."""
+    scraper = TargetScraper()
+    seen: set[str] = set()
+    return _rows_from_redsky_walk(data, scraper, seen, limit)
 
 
 class TargetScraper(BaseScraper):
     SITE_NAME = "target"
 
-    async def fetch_listings(
-        self, query: str = "dog bed", limit: int = 20
+    async def _fetch_via_redsky(
+        self,
+        client: httpx.AsyncClient,
+        api_key: str,
+        html: str,
+        seen_urls: set[str],
+        limit: int,
     ) -> list[ProductRaw]:
-        url = _listing_url(query)
+        if not _target_scraperapi_try_redsky():
+            return []
+        key = _extract_redsky_key(html)
+        if not key:
+            return []
+        rs_url = _build_redsky_search_url(key, keyword="dog bed", count=max(limit, 24))
+        body, status = await _target_scraperapi_get(client, api_key, rs_url)
+        if not body or status != 200:
+            return []
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            return []
+        return _rows_from_redsky_walk(data, self, seen_urls, limit)
+
+    async def _fetch_listings_via_scraperapi(
+        self,
+        query: str,
+        limit: int,
+    ) -> list[ProductRaw]:
+        api_key = (os.environ.get("SCRAPERAPI_KEY") or "").strip()
+        if not api_key:
+            self._empty_scrape_note = "Target requires SCRAPERAPI_KEY in backend/.env"
+            return []
+
+        listing_url = _listing_url(query)
         seen_urls: set[str] = set()
         products: list[ProductRaw] = []
-        n_links = 0
+        last_status = 0
+        tout = _target_scraperapi_timeout_sec()
+        timeout_cfg = httpx.Timeout(tout, connect=min(30.0, tout))
 
-        async with async_playwright() as pw:
-            async with self._stealth_page(pw) as page:
-                try:
-                    async with page.expect_response(
-                        lambda r: "listing-page-product-list" in r.url
-                        and r.status == 200,
-                        timeout=40_000,
-                    ):
-                        await page.goto(
-                            url, wait_until="domcontentloaded", timeout=70_000
-                        )
-                except Exception:
-                    await page.goto(
-                        url, wait_until="domcontentloaded", timeout=70_000
+        try:
+            async with httpx.AsyncClient(timeout=timeout_cfg) as client:
+                body, last_status = await _target_scraperapi_get(
+                    client, api_key, listing_url
+                )
+                if body and not _target_block_detected(body):
+                    products = _parse_target_html(
+                        body, self, seen_urls, _FETCH_PAGE_CAP
                     )
-
-                await asyncio.sleep(random.uniform(1.5, 2.5))
-                await _dismiss_consent(page)
-                await _debug_instrumentation(page, "after_load")
-
-                n_links = await _wait_for_hydrated_grid(page)
-                await self.human_delay()
-                await _debug_instrumentation(page, "after_hydrate")
-
-                links = await _collect_product_links(page, limit)
-                n_links = max(n_links, await _count_product_links(page))
-                products = await _parse_dom_links(links, self, seen_urls, limit)
-
-                # Do not merge sitewide /A- paths from full HTML — causes toys, cat, treats.
-
-                if not products:
-                    diag = await _debug_instrumentation(page, "empty_result")
+                    if not products:
+                        products = await self._fetch_via_redsky(
+                            client, api_key, body, seen_urls, _FETCH_PAGE_CAP
+                        )
+                elif body:
                     self._empty_scrape_note = (
-                        f"Target: 0 products (dom_links={n_links}, "
-                        f"html_len={diag.get('content_length')}, "
-                        f"embedded_paths={diag.get('embedded_paths')}). "
-                        "Grid may not have hydrated."
+                        "Target ScraperAPI: block or empty shell detected. "
+                        "Use TARGET_SCRAPERAPI_RENDER=true and TARGET_SCRAPERAPI_ULTRA_PREMIUM=true."
                     )
                     logger.warning(self._empty_scrape_note)
+        except httpx.HTTPError as exc:
+            note = (
+                "Target ScraperAPI HTTP error (%s). Check timeouts and connectivity."
+                % type(exc).__name__
+            )
+            logger.exception(note)
+            self._empty_scrape_note = "%s Details: %s" % (note, exc)
+            return []
+
+        if not products:
+            self._empty_scrape_note = (
+                "Target ScraperAPI: 0 products parsed "
+                f"(last_http={last_status}). "
+                "Use TARGET_SCRAPERAPI_ULTRA_PREMIUM=true and TARGET_SCRAPERAPI_RENDER=true."
+            )
+            logger.warning(self._empty_scrape_note)
+        else:
+            logger.info(
+                "Target ScraperAPI: fetched %s product(s) from %s",
+                len(products),
+                listing_url[:80],
+            )
 
         return products[:limit]
+
+    async def fetch_listings(
+        self,
+        query: str = "dog bed",
+        limit: int = 20,
+        *,
+        listing_pages: int = 1,
+    ) -> list[ProductRaw]:
+        api_key = (os.environ.get("SCRAPERAPI_KEY") or "").strip()
+        if not api_key:
+            self._empty_scrape_note = "Target requires SCRAPERAPI_KEY in backend/.env"
+            return []
+        return await self._fetch_listings_via_scraperapi(query, limit)

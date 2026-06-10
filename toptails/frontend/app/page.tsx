@@ -1,4 +1,5 @@
 import ChewySiteSection from "@/components/ChewySiteSection";
+import TargetSiteSection from "@/components/TargetSiteSection";
 import ProductCard from "@/components/ProductCard";
 import ScrapeStatusBanner from "@/components/ScrapeStatusBanner";
 import SiteScrapeControls from "@/components/SiteScrapeControls";
@@ -122,8 +123,9 @@ function SiteSection({ result }: { result: SiteResult }) {
 export default async function Home() {
   const data = await fetchProducts();
 
+  const onDemandSites = new Set(["chewy", "target"]);
   const hasAnyProducts = data?.results.some(
-    (r) => r.site !== "chewy" && r.top_products.length > 0
+    (r) => !onDemandSites.has(r.site) && r.top_products.length > 0
   );
 
   return (
@@ -208,6 +210,8 @@ export default async function Home() {
             {data.results.map((result) =>
               result.site === "chewy" ? (
                 <ChewySiteSection key={result.site} />
+              ) : result.site === "target" ? (
+                <TargetSiteSection key={result.site} />
               ) : (
                 <SiteSection key={result.site} result={result} />
               )

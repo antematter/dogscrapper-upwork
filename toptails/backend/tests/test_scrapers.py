@@ -365,3 +365,128 @@ def test_chewy_parse_html_ld_json_fallback():
     assert len(products) == 1
     assert "Cooling Dog Bed Mat" in products[0].title
     assert products[0].product_url.endswith("/dp/99999")
+
+
+def test_target_normalize_image_url():
+    from app.scrapers.target import _normalize_target_image_url
+
+    assert _normalize_target_image_url(
+        "//target.scene7.com/is/image/Target/GUEST_abc"
+    ) == "https://target.scene7.com/is/image/Target/GUEST_abc"
+    assert _normalize_target_image_url(
+        "https://target.scene7.com/is/image/Target/GUEST_abc"
+    ) == "https://target.scene7.com/is/image/Target/GUEST_abc"
+
+
+def test_target_parse_product_cards_html():
+    from app.scrapers.target import products_from_html_for_tests
+
+    html = """
+    <div data-test="@web/ProductCard/ProductCardVariantWrapper">
+    <span>$29.99 - $49.99</span>
+    <img src="https://target.scene7.com/is/image/Target/GUEST_testimg" />
+    <a aria-label="4.6 stars with 42 ratings" href="#"></a>
+    <a aria-label="FurHaven Orthopedic Dog Bed"
+       data-test="@web/ProductCard/title"
+       href="/p/furhaven-orthopedic-dog-bed/-/A-12345678">FurHaven</a>
+    </div>
+    """
+    products = products_from_html_for_tests(html)
+    assert len(products) == 1
+    assert "Orthopedic Dog Bed" in products[0].title
+    assert products[0].product_url.endswith("/A-12345678")
+    assert products[0].price == 29.99
+    assert products[0].avg_rating == 4.6
+    assert products[0].review_count == 42
+    assert products[0].image_url and "scene7.com" in products[0].image_url
+
+
+def test_target_parse_json_ld():
+    from app.scrapers.target import products_from_html_for_tests
+
+    html = """
+    <html><body>
+    <script type="application/ld+json">
+    {"@type":"ItemList","itemListElement":[
+      {"item":{"@type":"Product","name":"Bolster Dog Bed",
+       "url":"https://www.target.com/p/bolster-dog-bed/-/A-99999",
+       "aggregateRating":{"ratingValue":4.8,"reviewCount":120},
+       "offers":{"price":"39.99"},
+       "image":"https://target.scene7.com/is/image/Target/GUEST_x"}}
+    ]}
+    </script>
+    </body></html>
+    """
+    products = products_from_html_for_tests(html)
+    assert len(products) == 1
+    assert products[0].title == "Bolster Dog Bed"
+    assert products[0].avg_rating == 4.8
+    assert products[0].review_count == 120
+    assert products[0].price == 39.99
+
+
+def test_target_redsky_walker():
+    from app.scrapers.target import products_from_redsky_for_tests
+
+    data = {
+        "data": {
+            "search": {
+                "products": [
+                    {
+                        "tcin": "111",
+                        "parent_tcin": "999",
+                        "title": "Dog Bolster Bed Small",
+                        "canonical_url": "/p/dog-bolster-bed/-/A-111",
+                        "price": {"current_retail": 24.99},
+                        "primary_image_url": "https://target.scene7.com/is/image/Target/GUEST_a",
+                        "ratings_and_reviews": {
+                            "statistics": {
+                                "rating": {"average": 4.7, "count": 88}
+                            }
+                        },
+                    },
+                    {
+                        "tcin": "222",
+                        "parent_tcin": "999",
+                        "title": "Dog Bolster Bed Large",
+                        "canonical_url": "/p/dog-bolster-bed/-/A-222",
+                        "price": {"current_retail": 34.99},
+                    },
+                ]
+            }
+        }
+    }
+    products = products_from_redsky_for_tests(data)
+    assert len(products) == 1
+    assert products[0].title.startswith("Dog Bolster")
+    assert products[0].variant_group_id == "999"
+    assert products[0].avg_rating == 4.7
+    assert products[0].review_count == 88
+
+
+def test_target_scraperapi_extra_params_defaults():
+    import os
+
+    from app.scrapers.target import _target_scraperapi_extra_params
+
+    saved = {
+        k: os.environ.get(k)
+        for k in (
+            "TARGET_SCRAPERAPI_PREMIUM",
+            "TARGET_SCRAPERAPI_RENDER",
+            "TARGET_SCRAPERAPI_ULTRA_PREMIUM",
+        )
+    }
+    try:
+        for k in saved:
+            os.environ.pop(k, None)
+        params = _target_scraperapi_extra_params()
+        assert params.get("ultra_premium") == "true"
+        assert params.get("render") == "true"
+        assert "premium" not in params
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v

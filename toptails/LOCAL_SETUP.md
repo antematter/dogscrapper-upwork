@@ -19,8 +19,8 @@ This document records the local development setup for TopTails, including workar
 | Tractor Supply | Done | ScraperAPI primary |
 | Petco | Done | ScraperAPI + Playwright fallback |
 | PetSmart | Done | Playwright |
-| Target | Implemented, good | Playwright |
-| Chewy | Done | ScraperAPI only (premium + render) |
+| Target | Done | ScraperAPI only (ultra + render) |
+| Chewy | Done | ScraperAPI only (ultra, no render) |
 | Amazon | Implemented, fragile | Playwright (often blocked) |
 | Walmart | Implemented, fragile | Playwright (often blocked) |
 
@@ -280,6 +280,41 @@ curl -X POST http://localhost:8000/scrape/run/chewy \
   -d '{"category": "dog_beds", "top_n": 2}'
 ```
 
+Chewy and Target use **on-demand loading** in the frontend — products appear only after you click **Scrape site** for that retailer.
+
+---
+
+## Target Scraper (ScraperAPI Only)
+
+Target uses **ScraperAPI exclusively** — no Playwright. Add to `toptails/backend/.env`:
+
+```env
+SCRAPERAPI_KEY=your-key
+TARGET_SCRAPERAPI_ULTRA_PREMIUM=true
+TARGET_SCRAPERAPI_RENDER=true
+TARGET_SCRAPERAPI_TIMEOUT=180
+TARGET_SCRAPERAPI_TRY_REDSKY=true
+```
+
+Notes:
+
+- Unlike Chewy, Target PLPs need **`render=true`** — CSR product cards do not appear in plain HTML
+- **Ultra Premium** is recommended (`ultra_premium=true`)
+- Listing uses the **search URL** (`searchTerm=dog+bed`) — the category PLP often returns 0 relevant rows
+- Product data is parsed from hydrated `ProductCard` markup (title, price, star ratings, images)
+- Redsky API fallback runs when embedded JSON is empty (if an API key is found in page HTML)
+- Each scrape costs credits and takes ~45-90 seconds
+- Probe tiers locally: `python testers/target_scraperapi.py --compare`
+- Prototype tester: `python testers/target_scraperapi.py --search --render --ultra`
+
+Test Target scrape:
+
+```bash
+curl -X POST http://localhost:8000/scrape/run/target \
+  -H "Content-Type: application/json" \
+  -d '{"category": "dog_beds", "top_n": 2}'
+```
+
 ---
 
 ## Common Issues
@@ -296,6 +331,8 @@ curl -X POST http://localhost:8000/scrape/run/chewy \
 | Stale UI after clearing DB | Restart uvicorn if `clear_products.py` couldn't reach the API |
 | `sudo` not available for DB setup | Use `postgres` superuser with `PGPASSWORD` (see Step 1) |
 | Chewy scrape blocked / HTTP 500 | Use `CHEWY_SCRAPERAPI_ULTRA_PREMIUM=true` and `CHEWY_SCRAPERAPI_RENDER=false` |
+| Target scrape returns 0 products | Use `TARGET_SCRAPERAPI_ULTRA_PREMIUM=true` and `TARGET_SCRAPERAPI_RENDER=true` |
+| Target shows no ratings in top 2 | Products need `avg_rating >= 4.5` and `review_count >= 10`; unscored PLP rows are filtered out |
 
 ---
 
