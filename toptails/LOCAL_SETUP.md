@@ -1,0 +1,327 @@
+# TopTails — Local Setup Guide
+
+This document records the local development setup for TopTails, including workarounds encountered during initial installation.
+
+## Project Overview
+
+**TopTails** is a dog-bed product scraper and trust-scoring pipeline. It scrapes 7 retailers, scores products by rating/review quality, and displays the top 2 per site in a web UI.
+
+| Path | Role |
+|------|------|
+| `toptails/backend/` | FastAPI app, 7 retailer scrapers, trust scoring, PostgreSQL persistence |
+| `toptails/frontend/` | Next.js 16 UI — per-site scrape buttons + product cards |
+| `testers/` | Standalone scraper prototypes (for debugging individual retailers) |
+
+**Scraper reliability:**
+
+| Retailer | Status | Method |
+|----------|--------|--------|
+| Tractor Supply | Done | ScraperAPI primary |
+| Petco | Done | ScraperAPI + Playwright fallback |
+| PetSmart | Done | Playwright |
+| Target | Implemented, good | Playwright |
+| Chewy | Done | ScraperAPI only (premium + render) |
+| Amazon | Implemented, fragile | Playwright (often blocked) |
+| Walmart | Implemented, fragile | Playwright (often blocked) |
+
+---
+
+## Prerequisites
+
+- **Python 3.11+** (tested with 3.12.3)
+- **Node.js 20+** (tested with v24.10.0)
+- **PostgreSQL** running on port **5432**
+- **npm** (comes with Node)
+
+Verify:
+
+```bash
+python3 --version
+node --version
+systemctl is-active postgresql   # or: pg_isready -h localhost -p 5432
+```
+
+---
+
+## Step 1: Create PostgreSQL Database
+
+Run once. If `sudo` is available:
+
+```bash
+sudo -u postgres psql -c "CREATE USER \"user\" WITH PASSWORD 'password';"
+sudo -u postgres psql -c "CREATE DATABASE toptails OWNER \"user\";"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE toptails TO \"user\";"
+```
+
+If the user already exists, skip the first command.
+
+**Alternative** (when `sudo` is not available but you have the `postgres` superuser password):
+
+```bash
+export PGPASSWORD=postgres
+psql -h localhost -p 5432 -U postgres -d postgres -c "CREATE USER \"user\" WITH PASSWORD 'password';"
+psql -h localhost -p 5432 -U postgres -d postgres -c "CREATE DATABASE toptails OWNER \"user\";"
+psql -h localhost -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE toptails TO \"user\";"
+```
+
+Verify connection:
+
+```bash
+PGPASSWORD=password psql -h localhost -p 5432 -U user -d toptails -c "SELECT current_database(), current_user;"
+```
+
+---
+
+## Step 2: Configure Backend Environment
+
+Create `toptails/backend/.env` from the example:
+
+```bash
+cd toptails/backend
+cp .env.example .env
+```
+
+Set these values in `.env`:
+
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/toptails
+SCRAPERAPI_KEY=<your-scraperapi-key>
+```
+
+`SCRAPERAPI_KEY` improves reliability for **Petco** and **Tractor Supply** scrapers. Other sites use Playwright.
+
+> **Note:** `toptails/.env.example` (with `PLAYWRIGHT_HEADLESS`, `LOG_LEVEL`) is only needed for full Docker Compose — not required for native local dev.
+
+---
+
+## Step 3: Set Up Python Backend
+
+### First-time setup
+
+```bash
+cd toptails/backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+playwright install chromium
+```
+
+### Workaround: `python3-venv` not installed
+
+If `python3 -m venv` fails with "ensurepip is not available", bootstrap manually:
+
+```bash
+cd toptails/backend
+python3 -m venv .venv --without-pip
+curl -sS https://bootstrap.pypa.io/get-pip.py | .venv/bin/python
+.venv/bin/pip install -r requirements.txt
+.venv/bin/playwright install chromium
+```
+
+Or install the system package (requires sudo):
+
+```bash
+sudo apt install python3.12-venv
+```
+
+### Start the server (every session)
+
+```bash
+cd toptails/backend
+source .venv/bin/activate
+uvicorn app.main:app --reload
+```
+
+Backend runs at **http://localhost:8000**.
+
+**Database schema:** On startup, `app/main.py` auto-creates the `products` table. If Alembic is needed later:
+
+```bash
+alembic upgrade head
+# If "DuplicateTable" error (table already exists from create_all):
+python scripts/alembic_sync.py
+```
+
+---
+
+## Step 4: Set Up Next.js Frontend
+
+```bash
+cd toptails/frontend
+npm install
+npm run dev
+```
+
+Frontend runs at **http://localhost:3000**.
+
+No frontend `.env` file is needed — `API_URL` defaults to `http://localhost:8000` server-side. To override, create `toptails/frontend/.env.local`:
+
+```env
+API_URL=http://localhost:8000
+```
+
+---
+
+## Step 5: Verify the Stack
+
+```bash
+# Backend health
+curl http://localhost:8000/health
+
+# Database connection
+cd toptails/backend && source .venv/bin/activate
+python scripts/check_db.py
+
+# Backend tests (expect ~41 passing)
+pytest -v
+
+# Frontend (expect HTTP 200)
+curl -o /dev/null -w "%{http_code}" http://localhost:3000
+```
+
+---
+
+## Step 6: Run Scrapes
+
+### Per-site (recommended)
+
+Open http://localhost:3000 and click **"Scrape site"** on individual retailer sections. Start with reliable sites:
+
+1. Tractor Supply or Target
+2. PetSmart, Petco, Chewy
+3. Amazon / Walmart last (often blocked)
+
+### All sites at once (3–8 minutes)
+
+```bash
+curl -X POST http://localhost:8000/scrape/run \
+  -H "Content-Type: application/json" \
+  -d '{"category": "dog_beds", "top_n": 2}'
+```
+
+### Single site via API
+
+```bash
+curl -X POST http://localhost:8000/scrape/run/tractor_supply \
+  -H "Content-Type: application/json" \
+  -d '{"category": "dog_beds", "top_n": 2}'
+```
+
+### Reset between test sessions
+
+```bash
+cd toptails/backend
+source .venv/bin/activate
+python scripts/clear_products.py
+```
+
+Truncates the `products` table and resets in-memory scrape state. Backend must be running for the API reset call.
+
+---
+
+## Quick Reference — Daily Workflow
+
+**Terminal 1 — Backend:**
+```bash
+cd toptails/backend
+source .venv/bin/activate
+uvicorn app.main:app --reload
+```
+
+**Terminal 2 — Frontend:**
+```bash
+cd toptails/frontend
+npm run dev
+```
+
+**Open:** http://localhost:3000
+
+---
+
+## API Endpoints
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/health` | Service status |
+| POST | `/scrape/run` | Scrape all 7 sites |
+| POST | `/scrape/run/{site}` | Scrape one site |
+| GET | `/scrape/status` | Global scrape progress |
+| GET | `/scrape/status/{site}` | Per-site scrape status |
+| GET | `/products?category=dog_beds&top_n=2` | Top products per site |
+
+Valid site keys: `amazon`, `walmart`, `chewy`, `petsmart`, `petco`, `target`, `tractor_supply`
+
+---
+
+## Chewy Scraper (ScraperAPI Only)
+
+Chewy uses **ScraperAPI exclusively** — no Playwright. Add to `toptails/backend/.env`:
+
+```env
+SCRAPERAPI_KEY=your-key
+CHEWY_SCRAPERAPI_ULTRA_PREMIUM=true
+CHEWY_SCRAPERAPI_RENDER=false
+CHEWY_SCRAPERAPI_TIMEOUT=120
+```
+
+Notes:
+
+- Chewy requires **Ultra Premium** on most ScraperAPI plans (`ultra_premium=true`)
+- Keep **`render=false`** — `render=true` often returns HTTP 500 for Chewy; product data is in SSR `__NEXT_DATA__`
+- Each scrape costs credits and takes ~30-60 seconds
+- Do not set `CHEWY_SCRAPERAPI_RENDER=true` unless ScraperAPI support advises it
+- Prototype tester: `python testers/chewy_scraperapi.py`
+
+Test Chewy scrape:
+
+```bash
+curl -X POST http://localhost:8000/scrape/run/chewy \
+  -H "Content-Type: application/json" \
+  -d '{"category": "dog_beds", "top_n": 2}'
+```
+
+---
+
+## Common Issues
+
+| Problem | Fix |
+|---------|-----|
+| `DATABASE_URL` not set / connection refused | Ensure PostgreSQL is running; verify `.env` has `localhost:5432` |
+| `python3-venv` not available | Use `--without-pip` bootstrap (see Step 3) or `apt install python3.12-venv` |
+| `playwright` browser not found | Run `playwright install chromium` inside activated venv |
+| Frontend shows "Backend unreachable" | Start backend first on port 8000 |
+| Scrape returns 409 Conflict | Another scrape is running — wait or restart uvicorn |
+| Amazon/Walmart show "Site unavailable" | Expected — bot detection; not a setup issue |
+| Alembic `DuplicateTable` | Run `python scripts/alembic_sync.py` |
+| Stale UI after clearing DB | Restart uvicorn if `clear_products.py` couldn't reach the API |
+| `sudo` not available for DB setup | Use `postgres` superuser with `PGPASSWORD` (see Step 1) |
+| Chewy scrape blocked / HTTP 500 | Use `CHEWY_SCRAPERAPI_ULTRA_PREMIUM=true` and `CHEWY_SCRAPERAPI_RENDER=false` |
+
+---
+
+## Docker Alternative (optional)
+
+For a full containerized stack instead of native setup:
+
+```bash
+cd toptails
+cp .env.example .env
+docker compose up --build
+```
+
+- Postgres on host port **5433** (not 5432)
+- Backend: http://localhost:8000
+- Frontend: http://localhost:3000
+
+If using Docker DB with a native backend, set `DATABASE_URL=postgresql://user:password@localhost:5433/toptails` in `backend/.env`.
+
+---
+
+## Verified Setup (2026-06-10)
+
+Initial setup was verified with:
+
+- Python 3.12.3, Node v24.10.0, PostgreSQL on port 5432
+- 41/41 backend tests passing
+- Tractor Supply test scrape: 96 products scraped, 2 saved to DB in ~60 seconds
+- Top product: FurHaven Plush and Suede Orthopedic Sofa Dog Bed (trust score 96%)
