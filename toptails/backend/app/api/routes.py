@@ -394,22 +394,35 @@ def get_products(
             {"category": category},
         ).fetchall()
 
-        # Get top products scoped to the most recent scrape window
+        # Latest scrape batch per site, one row per product URL (no cross-run dupes)
         product_rows = db.execute(
             text("""
+                WITH site_latest AS (
+                    SELECT source_site, MAX(scraped_at) AS latest_at
+                    FROM products
+                    WHERE category = :category
+                    GROUP BY source_site
+                ),
+                latest_batch AS (
+                    SELECT p.source_site, p.title, p.price, p.avg_rating, p.review_count,
+                           p.trust_score, p.product_url, p.image_url
+                    FROM products p
+                    INNER JOIN site_latest sl ON p.source_site = sl.source_site
+                    WHERE p.category = :category
+                      AND p.scrape_status = 'ok'
+                      AND p.trust_score IS NOT NULL
+                      AND p.scraped_at >= sl.latest_at - INTERVAL '30 seconds'
+                ),
+                deduped AS (
+                    SELECT DISTINCT ON (source_site, product_url)
+                        source_site, title, price, avg_rating, review_count,
+                        trust_score, product_url, image_url
+                    FROM latest_batch
+                    ORDER BY source_site, product_url, trust_score DESC
+                )
                 SELECT source_site, title, price, avg_rating, review_count,
                        trust_score, product_url, image_url
-                FROM products
-                WHERE category = :category
-                  AND scrape_status = 'ok'
-                  AND trust_score IS NOT NULL
-                  AND scraped_at >= (
-                      SELECT COALESCE(
-                          MAX(scraped_at),
-                          TIMESTAMPTZ 'epoch'
-                      ) - INTERVAL '60 minutes'
-                      FROM products WHERE category = :category
-                  )
+                FROM deduped
                 ORDER BY source_site, trust_score DESC
             """),
             {"category": category},

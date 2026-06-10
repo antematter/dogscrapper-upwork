@@ -37,6 +37,7 @@ class ProductRaw(BaseModel):
     trust_score: Optional[float] = None
     scrape_status: str = "ok"
     scrape_notes: Optional[str] = None
+    variant_group_id: Optional[str] = None
 
 
 def listing_pages_to_fetch() -> int:

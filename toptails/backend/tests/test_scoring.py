@@ -256,6 +256,82 @@ def test_ranker_excludes_below_min_rating_or_reviews():
     assert ranked["petsmart"][0].title == "Qualified"
 
 
+def test_ranker_dedupes_same_product_url():
+    products = [
+        ProductRaw(
+            source_site="chewy",
+            title="Bedsure Large",
+            trust_score=0.93,
+            scrape_status="ok",
+            avg_rating=4.69,
+            review_count=265,
+            product_url="https://www.chewy.com/bedsure/dp/2461134",
+        ),
+        ProductRaw(
+            source_site="chewy",
+            title="Bedsure Large duplicate",
+            trust_score=0.93,
+            scrape_status="ok",
+            avg_rating=4.69,
+            review_count=265,
+            product_url="https://www.chewy.com/bedsure/dp/2461134",
+        ),
+        ProductRaw(
+            source_site="chewy",
+            title="Lesure Medium",
+            trust_score=0.91,
+            scrape_status="ok",
+            avg_rating=4.65,
+            review_count=797,
+            product_url="https://www.chewy.com/lesure/dp/1815798",
+        ),
+    ]
+    ranked = rank_products(products, top_n=2)
+    assert len(ranked["chewy"]) == 2
+    urls = {p.product_url for p in ranked["chewy"]}
+    assert len(urls) == 2
+
+
+def test_ranker_dedupes_chewy_variants_by_parent():
+    products = [
+        ProductRaw(
+            source_site="chewy",
+            title="Lesure Medium",
+            trust_score=0.93,
+            scrape_status="ok",
+            avg_rating=4.65,
+            review_count=797,
+            product_url="https://www.chewy.com/lesure/dp/1815798",
+            variant_group_id="1815686",
+        ),
+        ProductRaw(
+            source_site="chewy",
+            title="Lesure Large",
+            trust_score=0.93,
+            scrape_status="ok",
+            avg_rating=4.65,
+            review_count=797,
+            product_url="https://www.chewy.com/lesure/dp/1815806",
+            variant_group_id="1815686",
+        ),
+        ProductRaw(
+            source_site="chewy",
+            title="Bedsure Large",
+            trust_score=0.94,
+            scrape_status="ok",
+            avg_rating=4.69,
+            review_count=265,
+            product_url="https://www.chewy.com/bedsure/dp/2461134",
+            variant_group_id="2461000",
+        ),
+    ]
+    ranked = rank_products(products, top_n=2)
+    assert len(ranked["chewy"]) == 2
+    titles = {p.title for p in ranked["chewy"]}
+    assert "Bedsure Large" in titles
+    assert ("Lesure Medium" in titles) ^ ("Lesure Large" in titles)
+
+
 def test_score_products_computes_trust_scores():
     products = [
         ProductRaw(

@@ -1,3 +1,4 @@
+import ChewySiteSection from "@/components/ChewySiteSection";
 import ProductCard from "@/components/ProductCard";
 import ScrapeStatusBanner from "@/components/ScrapeStatusBanner";
 import SiteScrapeControls from "@/components/SiteScrapeControls";
@@ -121,7 +122,9 @@ function SiteSection({ result }: { result: SiteResult }) {
 export default async function Home() {
   const data = await fetchProducts();
 
-  const hasAnyProducts = data?.results.some((r) => r.top_products.length > 0);
+  const hasAnyProducts = data?.results.some(
+    (r) => r.site !== "chewy" && r.top_products.length > 0
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-stone-50 text-stone-900">
@@ -202,9 +205,13 @@ export default async function Home() {
 
         {data && (
           <div className="flex flex-col gap-5">
-            {data.results.map((result) => (
-              <SiteSection key={result.site} result={result} />
-            ))}
+            {data.results.map((result) =>
+              result.site === "chewy" ? (
+                <ChewySiteSection key={result.site} />
+              ) : (
+                <SiteSection key={result.site} result={result} />
+              )
+            )}
           </div>
         )}
       </main>

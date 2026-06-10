@@ -195,3 +195,173 @@ def test_tractor_supply_parse_search_display_html():
     assert products[0].image_url and "media.tractorsupply.com" in products[0].image_url
     assert products[0].avg_rating == 4.7
     assert products[0].review_count == 31
+
+
+def test_chewy_parse_next_data_products():
+    from app.scrapers.chewy import products_from_next_data_for_tests
+
+    nd = {
+        "props": {
+            "pageProps": {
+                "initialState": {
+                    "searchSlice": {
+                        "plpData": {
+                            "products": [
+                                {
+                                    "name": "FurHaven Orthopedic Dog Bed",
+                                    "href": "https://www.chewy.com/furhaven-orthopedic-dog-bed/dp/12345",
+                                    "advertisedPrice": "49.99",
+                                    "rating": 4.7,
+                                    "ratingCount": 128,
+                                    "image": "//image.chewy.com/catalog/general/images/moe/abc-uuid,1",
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+    products = products_from_next_data_for_tests(nd)
+    assert len(products) == 1
+    assert products[0].title == "FurHaven Orthopedic Dog Bed"
+    assert products[0].product_url.endswith("/dp/12345")
+    assert products[0].price == 49.99
+    assert products[0].avg_rating == 4.7
+    assert products[0].review_count == 128
+    assert products[0].image_url == (
+        "https://image.chewy.com/catalog/general/images/moe/"
+        "abc-uuid._SX500_SY400_QL75_V1_.jpg"
+    )
+
+
+def test_chewy_normalize_image_url_moe_format():
+    from app.scrapers.chewy import _normalize_chewy_image_url
+
+    raw = "//image.chewy.com/catalog/general/images/moe/069d51ae-44c3-7c80-8000-6bba79200015,1"
+    url = _normalize_chewy_image_url(raw)
+    assert url == (
+        "https://image.chewy.com/catalog/general/images/moe/"
+        "069d51ae-44c3-7c80-8000-6bba79200015._SX500_SY400_QL75_V1_.jpg"
+    )
+
+
+def test_chewy_parse_next_data_dedupes_parent_variants():
+    from app.scrapers.chewy import products_from_next_data_for_tests
+
+    nd = {
+        "props": {
+            "pageProps": {
+                "initialState": {
+                    "searchSlice": {
+                        "plpData": {
+                            "products": [
+                                {
+                                    "name": "Lesure Dog Bed Medium",
+                                    "href": "https://www.chewy.com/lesure-dog-bed/dp/1815798",
+                                    "parentPartNumber": 1815686,
+                                    "rating": 4.65,
+                                    "ratingCount": 797,
+                                },
+                                {
+                                    "name": "Lesure Dog Bed Large",
+                                    "href": "https://www.chewy.com/lesure-dog-bed/dp/1815806",
+                                    "parentPartNumber": 1815686,
+                                    "rating": 4.65,
+                                    "ratingCount": 797,
+                                },
+                                {
+                                    "name": "FurHaven Orthopedic Dog Bed",
+                                    "href": "https://www.chewy.com/furhaven-orthopedic-dog-bed/dp/12345",
+                                    "parentPartNumber": 99999,
+                                    "rating": 4.7,
+                                    "ratingCount": 128,
+                                },
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+    products = products_from_next_data_for_tests(nd)
+    assert len(products) == 2
+    urls = {p.product_url for p in products}
+    assert "https://www.chewy.com/lesure-dog-bed/dp/1815798" in urls
+    assert "https://www.chewy.com/furhaven-orthopedic-dog-bed/dp/12345" in urls
+
+
+def test_chewy_parse_next_data_ad_redirect_url():
+    from app.scrapers.chewy import products_from_next_data_for_tests
+
+    nd = {
+        "props": {
+            "pageProps": {
+                "initialState": {
+                    "searchSlice": {
+                        "plpData": {
+                            "products": [
+                                {
+                                    "name": "Ad Tile Dog Bed",
+                                    "href": "https://www.chewy.com/api/event/p/sar/click?redirect=https://www.chewy.com/ad-tile-dog-bed/dp/99999",
+                                    "rating": 4.6,
+                                    "ratingCount": 50,
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+    products = products_from_next_data_for_tests(nd)
+    assert len(products) == 1
+    assert products[0].product_url.endswith("/dp/99999")
+
+
+def test_chewy_scraperapi_extra_params_defaults():
+    import os
+
+    from app.scrapers.chewy import _chewy_scraperapi_extra_params
+
+    saved = {
+        k: os.environ.get(k)
+        for k in (
+            "CHEWY_SCRAPERAPI_PREMIUM",
+            "CHEWY_SCRAPERAPI_RENDER",
+            "CHEWY_SCRAPERAPI_ULTRA_PREMIUM",
+        )
+    }
+    try:
+        for k in saved:
+            os.environ.pop(k, None)
+        params = _chewy_scraperapi_extra_params()
+        assert params.get("ultra_premium") == "true"
+        assert "render" not in params
+        assert "premium" not in params
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def test_chewy_parse_html_ld_json_fallback():
+    from app.scrapers.chewy import ChewyScraper, _parse_chewy_html
+
+    html = """
+    <html><body>
+    <script type="application/ld+json">
+    {"@type":"ItemList","itemListElement":[
+      {"item":{"@type":"Product","name":"Cooling Dog Bed Mat",
+       "url":"https://www.chewy.com/cooling-dog-bed-mat/dp/99999"}}
+    ]}
+    </script>
+    </body></html>
+    """
+    scraper = ChewyScraper()
+    products = _parse_chewy_html(html, scraper, set(), 10)
+    assert len(products) == 1
+    assert "Cooling Dog Bed Mat" in products[0].title
+    assert products[0].product_url.endswith("/dp/99999")

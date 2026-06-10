@@ -17,6 +17,26 @@ MIN_AVG_RATING = 4.5
 MIN_REVIEW_COUNT = 10
 
 
+def _product_dedupe_key(p: ProductRaw) -> str:
+    if p.variant_group_id:
+        return f"{p.source_site}:{p.variant_group_id}"
+    url = (p.product_url or "").split("?")[0].rstrip("/")
+    if url:
+        return f"{p.source_site}:{url}"
+    return f"{p.source_site}:title:{(p.title or '').strip().lower()}"
+
+
+def _dedupe_for_ranking(products: list[ProductRaw]) -> list[ProductRaw]:
+    """Keep the highest trust-score row per URL or variant group (e.g. Chewy parent SKU)."""
+    best: dict[str, ProductRaw] = {}
+    for p in products:
+        key = _product_dedupe_key(p)
+        cur = best.get(key)
+        if cur is None or (p.trust_score or 0) > (cur.trust_score or 0):
+            best[key] = p
+    return list(best.values())
+
+
 def _meets_listing_criteria(p: ProductRaw) -> bool:
     return (
         p.avg_rating is not None
@@ -56,13 +76,15 @@ def rank_products(
             ranked[site] = []
             continue
 
-        eligible = [
-            p
-            for p in site_products
-            if p.scrape_status == "ok"
-            and p.trust_score is not None
-            and _meets_listing_criteria(p)
-        ]
+        eligible = _dedupe_for_ranking(
+            [
+                p
+                for p in site_products
+                if p.scrape_status == "ok"
+                and p.trust_score is not None
+                and _meets_listing_criteria(p)
+            ]
+        )
         top = sorted(eligible, key=lambda p: p.trust_score, reverse=True)[:top_n]
         ranked[site] = top
 

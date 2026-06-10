@@ -74,9 +74,15 @@ function SiteDebugInline({ debug, site }: { debug: SiteDebugInfo; site: string }
 export default function SiteScrapeControls({
   site,
   siteLabel,
+  showDebug = true,
+  refreshOnComplete = true,
+  onScrapeComplete,
 }: {
   site: string;
   siteLabel: string;
+  showDebug?: boolean;
+  refreshOnComplete?: boolean;
+  onScrapeComplete?: () => void;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<SiteScrapeStatus | null>(null);
@@ -104,10 +110,11 @@ export default function SiteScrapeControls({
   useEffect(() => {
     if (!status) return;
     if (wasRunning.current && !status.scrape_running) {
-      router.refresh();
+      if (refreshOnComplete) router.refresh();
+      onScrapeComplete?.();
     }
     wasRunning.current = status.scrape_running;
-  }, [status?.scrape_running, status, router]);
+  }, [status?.scrape_running, status, router, refreshOnComplete, onScrapeComplete]);
 
   const busyElsewhere =
     Boolean(status?.global_scrape_running) &&
@@ -142,8 +149,8 @@ export default function SiteScrapeControls({
     status?.last_finished_at &&
     Date.now() - Date.parse(status.last_finished_at) < 45 * 60 * 1000;
 
-  const showDebug =
-    Boolean(status?.debug) && !running && Boolean(recentFinish);
+  const showDebugPanel =
+    showDebug && Boolean(status?.debug) && !running && Boolean(recentFinish);
 
   return (
     <div className="w-full sm:w-auto flex flex-col items-stretch sm:items-end gap-1">
@@ -179,7 +186,8 @@ export default function SiteScrapeControls({
           {status.last_error}
         </p>
       ) : null}
-      {status?.last_saved_rows != null &&
+      {showDebug &&
+      status?.last_saved_rows != null &&
       !status.last_error &&
       !running &&
       recentFinish ? (
@@ -187,7 +195,7 @@ export default function SiteScrapeControls({
           Saved {status.last_saved_rows} row{status.last_saved_rows === 1 ? "" : "s"}
         </span>
       ) : null}
-      {showDebug && status?.debug ? (
+      {showDebugPanel && status?.debug ? (
         <SiteDebugInline debug={status.debug} site={site} />
       ) : null}
     </div>

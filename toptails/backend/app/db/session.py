@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -38,6 +39,7 @@ def create_tables():
 def save_products(products: list[ProductRaw]) -> None:
     """Persist scored products to the database. Skips empty-title records."""
     db = SessionLocal()
+    batch_at = datetime.now(timezone.utc)
     try:
         for p in products:
             if not p.title:
@@ -58,6 +60,7 @@ def save_products(products: list[ProductRaw]) -> None:
                 trust_score=p.trust_score,
                 scrape_status=p.scrape_status,
                 scrape_notes=p.scrape_notes,
+                scraped_at=batch_at,
             )
             db.add(row)
         db.commit()
