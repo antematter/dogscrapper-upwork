@@ -490,3 +490,357 @@ def test_target_scraperapi_extra_params_defaults():
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
+
+
+def _walmart_item(
+    *,
+    name: str,
+    us_item_id: str,
+    catalog_product_id: str | None = None,
+    price: float = 29.99,
+    rating: float = 4.6,
+    reviews: int = 100,
+    sponsored: bool = False,
+) -> dict:
+    return {
+        "__typename": "Product",
+        "name": name,
+        "usItemId": us_item_id,
+        "catalogProductId": catalog_product_id or us_item_id,
+        "canonicalUrl": f"/ip/{name.lower().replace(' ', '-')}/{us_item_id}",
+        "averageRating": rating,
+        "numberOfReviews": reviews,
+        "isSponsoredFlag": sponsored,
+        "priceInfo": {"currentPrice": {"price": price}},
+        "imageInfo": {"thumbnailUrl": "//i5.walmartimages.com/asr/test.jpeg"},
+    }
+
+
+def test_walmart_parse_next_data_item_stacks():
+    from app.scrapers.walmart import products_from_next_data_for_tests
+
+    nd = {
+        "props": {
+            "pageProps": {
+                "initialData": {
+                    "searchResult": {
+                        "itemStacks": [
+                            {
+                                "items": [
+                                    _walmart_item(
+                                        name="Orthopedic Dog Bed Large",
+                                        us_item_id="111",
+                                        rating=4.8,
+                                        reviews=250,
+                                    ),
+                                    _walmart_item(
+                                        name="Bolster Dog Bed Medium",
+                                        us_item_id="222",
+                                        rating=4.7,
+                                        reviews=180,
+                                    ),
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    }
+    products = products_from_next_data_for_tests(nd)
+    assert len(products) == 2
+    assert products[0].avg_rating == 4.8
+    assert products[0].review_count == 250
+    assert products[0].price == 29.99
+    assert products[0].image_url == "https://i5.walmartimages.com/asr/test.jpeg"
+
+
+def test_walmart_skips_sponsored_items():
+    from app.scrapers.walmart import products_from_next_data_for_tests
+
+    nd = {
+        "props": {
+            "pageProps": {
+                "initialData": {
+                    "searchResult": {
+                        "itemStacks": [
+                            {
+                                "items": [
+                                    _walmart_item(
+                                        name="Sponsored Dog Bed",
+                                        us_item_id="999",
+                                        sponsored=True,
+                                    ),
+                                    _walmart_item(
+                                        name="Real Dog Bed",
+                                        us_item_id="888",
+                                    ),
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    }
+    products = products_from_next_data_for_tests(nd)
+    assert len(products) == 1
+    assert "Real Dog Bed" in products[0].title
+
+
+def test_walmart_dedupes_parent_variants():
+    from app.scrapers.walmart import products_from_next_data_for_tests
+
+    nd = {
+        "props": {
+            "pageProps": {
+                "initialData": {
+                    "searchResult": {
+                        "itemStacks": [
+                            {
+                                "items": [
+                                    _walmart_item(
+                                        name="Dog Bed Small",
+                                        us_item_id="100",
+                                        catalog_product_id="555",
+                                        reviews=50,
+                                    ),
+                                    _walmart_item(
+                                        name="Dog Bed Large",
+                                        us_item_id="101",
+                                        catalog_product_id="555",
+                                        reviews=200,
+                                    ),
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    }
+    products = products_from_next_data_for_tests(nd)
+    assert len(products) == 1
+    assert products[0].review_count == 200
+    assert products[0].variant_group_id == "555"
+
+
+def test_walmart_normalize_image_url():
+    from app.scrapers.walmart import _normalize_walmart_image_url
+
+    assert _normalize_walmart_image_url(
+        "//i5.walmartimages.com/asr/abc.jpeg"
+    ) == "https://i5.walmartimages.com/asr/abc.jpeg"
+
+
+def test_walmart_parse_json_ld():
+    from app.scrapers.walmart import products_from_html_for_tests
+
+    html = """
+    <html><body>
+    <script type="application/ld+json">
+    {"@type":"ItemList","itemListElement":[
+      {"item":{"@type":"Product","name":"Memory Foam Dog Bed",
+       "url":"https://www.walmart.com/ip/memory-foam-dog-bed/12345",
+       "aggregateRating":{"ratingValue":4.9,"reviewCount":88},
+       "offers":{"price":"49.99"},
+       "image":"https://i5.walmartimages.com/asr/ld.jpeg"}}
+    ]}
+    </script>
+    </body></html>
+    """
+    products = products_from_html_for_tests(html)
+    assert len(products) == 1
+    assert products[0].title == "Memory Foam Dog Bed"
+    assert products[0].avg_rating == 4.9
+    assert products[0].review_count == 88
+
+
+def test_walmart_scraperapi_extra_params_defaults():
+    import os
+
+    from app.scrapers.walmart import _walmart_scraperapi_extra_params
+
+    saved = {
+        k: os.environ.get(k)
+        for k in (
+            "WALMART_SCRAPERAPI_PREMIUM",
+            "WALMART_SCRAPERAPI_RENDER",
+            "WALMART_SCRAPERAPI_ULTRA_PREMIUM",
+        )
+    }
+    try:
+        for k in saved:
+            os.environ.pop(k, None)
+        params = _walmart_scraperapi_extra_params()
+        assert params.get("ultra_premium") == "true"
+        assert "render" not in params
+        assert "premium" not in params
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def _amazon_structured_item(
+    *,
+    name: str,
+    asin: str,
+    price: float = 39.99,
+    stars: float = 4.7,
+    reviews: int = 500,
+    url: str | None = None,
+    item_type: str = "search_product",
+) -> dict:
+    return {
+        "type": item_type,
+        "asin": asin,
+        "name": name,
+        "stars": stars,
+        "total_reviews": reviews,
+        "price": price,
+        "price_string": f"${price:.2f}",
+        "url": url or f"https://www.amazon.com/dp/{asin}/ref=sr_1_1",
+        "image": f"https://m.media-amazon.com/images/I/{asin}.jpg",
+    }
+
+
+def test_amazon_parse_structured_results():
+    from app.scrapers.amazon import products_from_structured_for_tests
+
+    data = {
+        "ads": [],
+        "results": [
+            _amazon_structured_item(
+                name="Orthopedic Dog Bed Large",
+                asin="B001TEST01",
+                stars=4.8,
+                reviews=1200,
+                price=49.99,
+            ),
+            _amazon_structured_item(
+                name="Bolster Dog Bed Medium",
+                asin="B002TEST02",
+                stars=4.6,
+                reviews=800,
+            ),
+        ],
+    }
+    products = products_from_structured_for_tests(data)
+    assert len(products) == 2
+    assert products[0].avg_rating == 4.8
+    assert products[0].review_count == 1200
+    assert products[0].price == 49.99
+    assert products[0].product_url == "https://www.amazon.com/dp/B001TEST01"
+    assert products[0].variant_group_id == "B001TEST01"
+    assert "m.media-amazon.com" in (products[0].image_url or "")
+
+
+def test_amazon_skips_ads_only_parses_results():
+    from app.scrapers.amazon import products_from_structured_for_tests
+
+    data = {
+        "ads": [
+            _amazon_structured_item(
+                name="Sponsored Dog Bed Ad",
+                asin="B099SPONS0",
+                item_type="editorial_recommendation",
+            )
+        ],
+        "results": [
+            _amazon_structured_item(
+                name="Real Dog Bed",
+                asin="B008REAL08",
+            ),
+        ],
+    }
+    products = products_from_structured_for_tests(data)
+    assert len(products) == 1
+    assert "Real Dog Bed" in products[0].title
+    assert products[0].variant_group_id == "B008REAL08"
+
+
+def test_amazon_dedupes_by_asin():
+    from app.scrapers.amazon import products_from_structured_for_tests
+
+    data = {
+        "results": [
+            _amazon_structured_item(
+                name="Dog Bed Small",
+                asin="B00DUPED01",
+                reviews=50,
+            ),
+            _amazon_structured_item(
+                name="Dog Bed Large",
+                asin="B00DUPED01",
+                reviews=300,
+            ),
+        ],
+    }
+    products = products_from_structured_for_tests(data)
+    assert len(products) == 1
+    assert products[0].review_count == 300
+    assert products[0].variant_group_id == "B00DUPED01"
+
+
+def test_amazon_skips_sponsored_html_urls():
+    from app.scrapers.amazon import products_from_html_for_tests
+
+    html = """
+    <div data-component-type="s-search-result" data-asin="B00SPONS01">
+      <h2><a href="/gp/slredirect/picassoRedirect.html?url=%2Fdp%2FB00SPONS01"><span>Sponsored Bed</span></a></h2>
+      <span class="a-offscreen">$29.99</span>
+      <span aria-label="4.5 out of 5 stars"></span>
+      <span aria-label="100 ratings"></span>
+      <img class="s-image" src="https://m.media-amazon.com/images/I/sp.jpg"/>
+    </div>
+    <div data-component-type="s-search-result" data-asin="B00REALDOG">
+      <h2><a href="/Orthopedic-Dog-Bed/dp/B00REALDOG/ref=sr_1_2"><span>Orthopedic Dog Bed</span></a></h2>
+      <span class="a-offscreen">$39.99</span>
+      <span aria-label="4.7 out of 5 stars"></span>
+      <span aria-label="250 ratings"></span>
+      <img class="s-image" src="https://m.media-amazon.com/images/I/real.jpg"/>
+    </div>
+    """
+    products = products_from_html_for_tests(html)
+    assert len(products) == 1
+    assert products[0].variant_group_id == "B00REALDOG"
+    assert products[0].product_url == "https://www.amazon.com/dp/B00REALDOG"
+
+
+def test_amazon_normalize_image_url():
+    from app.scrapers.amazon import _normalize_amazon_image_url
+
+    assert _normalize_amazon_image_url(
+        "//m.media-amazon.com/images/I/test.jpg"
+    ) == "https://m.media-amazon.com/images/I/test.jpg"
+
+
+def test_amazon_scraperapi_extra_params_defaults():
+    import os
+
+    from app.scrapers.amazon import _amazon_scraperapi_extra_params
+
+    saved = {
+        k: os.environ.get(k)
+        for k in (
+            "AMAZON_SCRAPERAPI_PREMIUM",
+            "AMAZON_SCRAPERAPI_RENDER",
+            "AMAZON_SCRAPERAPI_ULTRA_PREMIUM",
+        )
+    }
+    try:
+        for k in saved:
+            os.environ.pop(k, None)
+        params = _amazon_scraperapi_extra_params()
+        assert params.get("ultra_premium") == "true"
+        assert "render" not in params
+        assert "premium" not in params
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v

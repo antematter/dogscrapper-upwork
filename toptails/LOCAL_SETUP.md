@@ -22,7 +22,7 @@ This document records the local development setup for TopTails, including workar
 | Target | Done | ScraperAPI only (ultra + render) |
 | Chewy | Done | ScraperAPI only (ultra, no render) |
 | Amazon | Implemented, fragile | Playwright (often blocked) |
-| Walmart | Implemented, fragile | Playwright (often blocked) |
+| Walmart | Done | ScraperAPI only (ultra, no render) |
 
 ---
 
@@ -280,7 +280,7 @@ curl -X POST http://localhost:8000/scrape/run/chewy \
   -d '{"category": "dog_beds", "top_n": 2}'
 ```
 
-Chewy and Target use **on-demand loading** in the frontend — products appear only after you click **Scrape site** for that retailer.
+Chewy, Target, and Walmart use **on-demand loading** in the frontend — products appear only after you click **Scrape site** for that retailer.
 
 ---
 
@@ -317,6 +317,67 @@ curl -X POST http://localhost:8000/scrape/run/target \
 
 ---
 
+## Walmart Scraper (ScraperAPI Only)
+
+Walmart uses **ScraperAPI exclusively** — no Playwright. Add to `toptails/backend/.env`:
+
+```env
+SCRAPERAPI_KEY=your-key
+WALMART_SCRAPERAPI_ULTRA_PREMIUM=true
+WALMART_SCRAPERAPI_RENDER=false
+WALMART_SCRAPERAPI_TIMEOUT=180
+```
+
+Notes:
+
+- Product data is in SSR `__NEXT_DATA__` at `searchResult.itemStacks` — **keep `render=false`** (`render=true` often returns HTTP 500, same as Chewy)
+- **Ultra Premium** is recommended (`ultra_premium=true`)
+- Parser extracts `name`, `canonicalUrl`, `averageRating`, `numberOfReviews`, `priceInfo`, `imageInfo.thumbnailUrl`
+- Sponsored tiles (`isSponsoredFlag`) are skipped; variants deduped by `catalogProductId`
+- Each scrape costs credits and takes ~30-90 seconds
+- Probe tiers: `python testers/walmart_scraperapi.py --compare`
+
+Test Walmart scrape:
+
+```bash
+curl -X POST http://localhost:8000/scrape/run/walmart \
+  -H "Content-Type: application/json" \
+  -d '{"category": "dog_beds", "top_n": 2}'
+```
+
+---
+
+## Amazon Scraper (ScraperAPI Only)
+
+Amazon uses **ScraperAPI exclusively** — no Playwright. Add to `toptails/backend/.env`:
+
+```env
+SCRAPERAPI_KEY=your-key
+AMAZON_SCRAPERAPI_USE_STRUCTURED=true
+AMAZON_SCRAPERAPI_TLD=com
+AMAZON_SCRAPERAPI_COUNTRY=us
+AMAZON_SCRAPERAPI_TIMEOUT=180
+```
+
+Notes:
+
+- Primary path is ScraperAPI's **structured Amazon search** endpoint (`/structured/amazon/search`) — returns JSON with `stars`, `total_reviews`, `price`, `asin`, `image`
+- Generic HTML fallback uses `AMAZON_SCRAPERAPI_ULTRA_PREMIUM=true` and `AMAZON_SCRAPERAPI_RENDER=false` if structured is disabled or empty
+- Sponsored listings are in a separate `ads[]` array — parser uses `results[]` only; HTML fallback skips `sspa`/`spons` URLs
+- Variants deduped by ASIN (`variant_group_id`); product URLs canonicalized to `https://www.amazon.com/dp/{asin}`
+- Each structured scrape costs ~5 ScraperAPI credits and takes ~30-60 seconds
+- Probe tiers: `python testers/amazon_scraperapi.py --compare`
+
+Test Amazon scrape:
+
+```bash
+curl -X POST http://localhost:8000/scrape/run/amazon \
+  -H "Content-Type: application/json" \
+  -d '{"category": "dog_beds", "top_n": 2}'
+```
+
+---
+
 ## Common Issues
 
 | Problem | Fix |
@@ -326,7 +387,8 @@ curl -X POST http://localhost:8000/scrape/run/target \
 | `playwright` browser not found | Run `playwright install chromium` inside activated venv |
 | Frontend shows "Backend unreachable" | Start backend first on port 8000 |
 | Scrape returns 409 Conflict | Another scrape is running — wait or restart uvicorn |
-| Amazon/Walmart show "Site unavailable" | Expected — bot detection; not a setup issue |
+| Amazon scrape returns 0 products | Use `AMAZON_SCRAPERAPI_USE_STRUCTURED=true` and verify `SCRAPERAPI_KEY` |
+| Walmart scrape returns 0 products | Use `WALMART_SCRAPERAPI_ULTRA_PREMIUM=true` and `WALMART_SCRAPERAPI_RENDER=false` |
 | Alembic `DuplicateTable` | Run `python scripts/alembic_sync.py` |
 | Stale UI after clearing DB | Restart uvicorn if `clear_products.py` couldn't reach the API |
 | `sudo` not available for DB setup | Use `postgres` superuser with `PGPASSWORD` (see Step 1) |
