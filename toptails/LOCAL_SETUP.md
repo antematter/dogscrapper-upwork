@@ -266,6 +266,7 @@ CHEWY_SCRAPERAPI_TIMEOUT=120
 
 Notes:
 
+- Fetches **2 PLP pages** by default (`LISTING_PAGES=2`, `CHEWY_SCRAPERAPI_MAX_PAGES=2`) before ranking
 - Chewy requires **Ultra Premium** on most ScraperAPI plans (`ultra_premium=true`)
 - Keep **`render=false`** — `render=true` often returns HTTP 500 for Chewy; product data is in SSR `__NEXT_DATA__`
 - Each scrape costs credits and takes ~30-60 seconds
@@ -298,6 +299,7 @@ TARGET_SCRAPERAPI_TRY_REDSKY=true
 
 Notes:
 
+- Fetches **2 PLP pages** by default (`LISTING_PAGES=2`, `TARGET_SCRAPERAPI_MAX_PAGES=2`) — page 2 via `Nao=24` on search URL; Redsky fallback uses `offset=24`
 - Unlike Chewy, Target PLPs need **`render=true`** — CSR product cards do not appear in plain HTML
 - **Ultra Premium** is recommended (`ultra_premium=true`)
 - Listing uses the **search URL** (`searchTerm=dog+bed`) — the category PLP often returns 0 relevant rows
@@ -330,6 +332,7 @@ WALMART_SCRAPERAPI_TIMEOUT=180
 
 Notes:
 
+- Fetches **2 PLP pages** by default (`LISTING_PAGES=2`, `WALMART_SCRAPERAPI_MAX_PAGES=2`) — page 2 via `&page=2`
 - Product data is in SSR `__NEXT_DATA__` at `searchResult.itemStacks` — **keep `render=false`** (`render=true` often returns HTTP 500, same as Chewy)
 - **Ultra Premium** is recommended (`ultra_premium=true`)
 - Parser extracts `name`, `canonicalUrl`, `averageRating`, `numberOfReviews`, `priceInfo`, `imageInfo.thumbnailUrl`
@@ -361,6 +364,7 @@ AMAZON_SCRAPERAPI_TIMEOUT=180
 
 Notes:
 
+- Fetches **2 PLP pages** by default (`LISTING_PAGES=2`, `AMAZON_SCRAPERAPI_MAX_PAGES=2`) — structured API `page=2` or generic `&page=2` (~5 credits/page)
 - Primary path is ScraperAPI's **structured Amazon search** endpoint (`/structured/amazon/search`) — returns JSON with `stars`, `total_reviews`, `price`, `asin`, `image`
 - Generic HTML fallback uses `AMAZON_SCRAPERAPI_ULTRA_PREMIUM=true` and `AMAZON_SCRAPERAPI_RENDER=false` if structured is disabled or empty
 - Sponsored listings are in a separate `ads[]` array — parser uses `results[]` only; HTML fallback skips `sspa`/`spons` URLs

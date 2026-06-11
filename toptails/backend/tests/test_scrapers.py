@@ -197,6 +197,31 @@ def test_tractor_supply_parse_search_display_html():
     assert products[0].review_count == 31
 
 
+def test_tractor_supply_image_src_before_id():
+    from app.scrapers.tractor_supply import _image_url_for_catalog_entry
+
+    html = (
+        '<a id="catalogEntry_img99" href="/tsc/product/test-bed-99" title="Test Bed">'
+        '<img src="//media.tractorsupply.com/is/image/TractorSupplyCompany/placeholder" '
+        'data-src="//media.tractorsupply.com/is/image/TractorSupplyCompany/real-99" '
+        'id="img1_99" />'
+        "</a>"
+    )
+    url = _image_url_for_catalog_entry(html, "99")
+    assert url == "https://media.tractorsupply.com/is/image/TractorSupplyCompany/real-99"
+
+
+def test_tractor_supply_image_from_pdp_html():
+    from app.scrapers.tractor_supply import _image_url_from_pdp_html
+
+    html = (
+        '<meta property="og:image" content="//media.tractorsupply.com/is/image/x/pdp-1" />'
+        '<script id="__NEXT_DATA__">{"props":{"pageProps":{"imageUrl":"ignored"}}}</script>'
+    )
+    url = _image_url_from_pdp_html(html)
+    assert url == "https://media.tractorsupply.com/is/image/x/pdp-1"
+
+
 def test_chewy_parse_next_data_products():
     from app.scrapers.chewy import products_from_next_data_for_tests
 
@@ -484,6 +509,40 @@ def test_target_scraperapi_extra_params_defaults():
         assert params.get("ultra_premium") == "true"
         assert params.get("render") == "true"
         assert "premium" not in params
+        redsky_params = _target_scraperapi_extra_params(render=False)
+        assert "render" not in redsky_params
+        assert redsky_params.get("ultra_premium") == "true"
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def test_target_resolve_redsky_key_fallback():
+    import os
+
+    from app.scrapers.target import (
+        _FALLBACK_REDSKY_API_KEY,
+        _resolve_redsky_key,
+    )
+
+    saved = {
+        k: os.environ.get(k)
+        for k in ("TARGET_REDSKY_API_KEY", "TARGET_REDSKY_FALLBACK_KEY")
+    }
+    try:
+        for k in saved:
+            os.environ.pop(k, None)
+        assert _resolve_redsky_key("") == _FALLBACK_REDSKY_API_KEY
+        assert _resolve_redsky_key('<span data-apiKey="abc123def456"></span>') == (
+            _FALLBACK_REDSKY_API_KEY
+        )
+        html = '{"apiKey":"abcdef1234567890abcdef1234567890"}'
+        assert _resolve_redsky_key(html) == "abcdef1234567890abcdef1234567890"
+        os.environ["TARGET_REDSKY_API_KEY"] = "env-override-key"
+        assert _resolve_redsky_key(html) == "env-override-key"
     finally:
         for k, v in saved.items():
             if v is None:
@@ -734,7 +793,7 @@ def test_amazon_parse_structured_results():
     assert products[0].review_count == 1200
     assert products[0].price == 49.99
     assert products[0].product_url == "https://www.amazon.com/dp/B001TEST01"
-    assert products[0].variant_group_id == "B001TEST01"
+    assert products[0].variant_group_id == "orthopedic-dog-bed"
     assert "m.media-amazon.com" in (products[0].image_url or "")
 
 
@@ -759,7 +818,7 @@ def test_amazon_skips_ads_only_parses_results():
     products = products_from_structured_for_tests(data)
     assert len(products) == 1
     assert "Real Dog Bed" in products[0].title
-    assert products[0].variant_group_id == "B008REAL08"
+    assert products[0].variant_group_id == "real-dog-bed"
 
 
 def test_amazon_dedupes_by_asin():
@@ -782,7 +841,30 @@ def test_amazon_dedupes_by_asin():
     products = products_from_structured_for_tests(data)
     assert len(products) == 1
     assert products[0].review_count == 300
-    assert products[0].variant_group_id == "B00DUPED01"
+    assert products[0].variant_group_id == "dog-bed"
+
+
+def test_amazon_dedupes_size_variants_by_title():
+    from app.scrapers.amazon import products_from_structured_for_tests
+
+    data = {
+        "results": [
+            _amazon_structured_item(
+                name="EHEYCIGA Orthopedic Dog Beds for Extra Large Dogs 44x32Inch",
+                asin="B00SIZE001",
+                reviews=5000,
+            ),
+            _amazon_structured_item(
+                name="EHEYCIGA Orthopedic Dog Beds for Large Dogs 36x27Inch",
+                asin="B00SIZE002",
+                reviews=8000,
+            ),
+        ],
+    }
+    products = products_from_structured_for_tests(data)
+    assert len(products) == 1
+    assert products[0].review_count == 8000
+    assert "eheyciga" in products[0].variant_group_id
 
 
 def test_amazon_skips_sponsored_html_urls():
@@ -806,7 +888,7 @@ def test_amazon_skips_sponsored_html_urls():
     """
     products = products_from_html_for_tests(html)
     assert len(products) == 1
-    assert products[0].variant_group_id == "B00REALDOG"
+    assert products[0].variant_group_id == "orthopedic-dog-bed"
     assert products[0].product_url == "https://www.amazon.com/dp/B00REALDOG"
 
 
@@ -844,3 +926,194 @@ def test_amazon_scraperapi_extra_params_defaults():
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
+
+
+def test_amazon_listing_url_page():
+    from app.scrapers.amazon import _listing_url, _listing_url_page
+
+    base = _listing_url("dog bed")
+    assert _listing_url_page(base, 1) == base
+    assert _listing_url_page(base, 2).endswith("page=2")
+
+
+def test_amazon_multi_page_structured_merge():
+    from app.scrapers.amazon import AmazonScraper, _products_from_structured
+
+    scraper = AmazonScraper()
+    seen: set[str] = set()
+    page1 = {"results": [_amazon_structured_item(name="Dog Bed A", asin="B00PAGE001")]}
+    page2 = {"results": [_amazon_structured_item(name="Dog Bed B", asin="B00PAGE002")]}
+    products: list = []
+    for data in (page1, page2):
+        products.extend(_products_from_structured(data, scraper, seen, 10_000))
+    assert len(products) == 2
+    assert {p.variant_group_id for p in products} == {"dog-bed-a", "dog-bed-b"}
+
+
+def test_walmart_listing_url_page():
+    from app.scrapers.walmart import _listing_url, _listing_url_page
+
+    base = _listing_url("dog bed")
+    assert _listing_url_page(base, 1) == base
+    assert _listing_url_page(base, 2).endswith("page=2")
+
+
+def test_walmart_multi_page_merge():
+    from app.scrapers.walmart import (
+        WalmartScraper,
+        _item_stacks_from_next_data,
+        _rows_from_item_stacks,
+    )
+
+    def _nd(us_item_id: str, name: str) -> dict:
+        return {
+            "props": {
+                "pageProps": {
+                    "initialData": {
+                        "searchResult": {
+                            "itemStacks": [
+                                {
+                                    "items": [
+                                        _walmart_item(name=name, us_item_id=us_item_id)
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+
+    scraper = WalmartScraper()
+    seen: set[str] = set()
+    products: list = []
+    for nd in (_nd("111", "Walmart Bed Page 1"), _nd("222", "Walmart Bed Page 2")):
+        products.extend(
+            _rows_from_item_stacks(
+                _item_stacks_from_next_data(nd), scraper, seen, 10_000
+            )
+        )
+    assert len(products) == 2
+
+
+def test_chewy_listing_url_page():
+    from app.scrapers.chewy import LISTING_URL, _listing_url_page
+
+    assert _listing_url_page(LISTING_URL, 1) == LISTING_URL
+    assert _listing_url_page(LISTING_URL, 2).endswith("page=2")
+
+
+def test_chewy_multi_page_aggregation():
+    from app.scrapers.chewy import (
+        ChewyScraper,
+        _chewy_best_tiles_by_parent,
+        _chewy_tile_to_raw,
+        _next_data_products,
+        _product_from_raw,
+    )
+
+    def _chewy_nd(href: str, name: str) -> dict:
+        return {
+            "props": {
+                "pageProps": {
+                    "initialState": {
+                        "searchSlice": {
+                            "plpData": {
+                                "products": [
+                                    {
+                                        "name": name,
+                                        "href": href,
+                                        "advertisedPrice": "29.99",
+                                        "rating": 4.6,
+                                        "ratingCount": 50,
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    scraper = ChewyScraper()
+    seen: set[str] = set()
+    products: list = []
+    for nd in (
+        _chewy_nd("https://www.chewy.com/bed-a/dp/10001", "Chewy Bed A"),
+        _chewy_nd("https://www.chewy.com/bed-b/dp/10002", "Chewy Bed B"),
+    ):
+        for item in _chewy_best_tiles_by_parent(_next_data_products(nd)):
+            raw = _chewy_tile_to_raw(item)
+            if raw:
+                row = _product_from_raw(scraper, raw, seen)
+                if row:
+                    products.append(row)
+    assert len(products) == 2
+
+
+def test_target_listing_url_nao():
+    from app.scrapers.target import _listing_url, _listing_url_nao
+
+    base = _listing_url("dog bed")
+    assert _listing_url_nao(base, 0) == base
+    assert _listing_url_nao(base, 24).endswith("Nao=24")
+
+
+def test_target_redsky_offset():
+    from app.scrapers.target import _build_redsky_search_url
+
+    url = _build_redsky_search_url("test-key", keyword="dog bed", offset=24)
+    assert "offset=24" in url
+    assert "count=24" in url
+
+
+def test_target_plp_offsets_two_pages():
+    from app.scrapers.target import _target_plp_offsets
+
+    assert _target_plp_offsets(2) == [0, 24]
+    assert _target_plp_offsets(1) == [0]
+
+
+@pytest.mark.asyncio
+async def test_target_always_fetches_both_redsky_pages(monkeypatch):
+    from app.scrapers.base import ProductRaw
+    from app.scrapers.target import TargetScraper
+
+    offsets_called: list[int] = []
+
+    async def fake_redsky(
+        self,
+        client,
+        api_key,
+        html,
+        seen_urls,
+        limit,
+        *,
+        keyword="dog bed",
+        offset=0,
+    ):
+        offsets_called.append(offset)
+        return [
+            ProductRaw(
+                source_site="target",
+                title=f"Bed offset {offset}",
+                product_url=f"https://www.target.com/p/bed/-/A-{offset}",
+                scrape_status="ok",
+            )
+        ]
+
+    async def fake_get(client, api_key, target_url):
+        shell = "x" * 9000 + '{"apiKey":"abcdef1234567890abcdef1234567890"}'
+        return f"<html>{shell}</html>", 200
+
+    monkeypatch.setenv("SCRAPERAPI_KEY", "test-key")
+    scraper = TargetScraper()
+    monkeypatch.setattr(TargetScraper, "_fetch_redsky_at_offset", fake_redsky)
+    monkeypatch.setattr("app.scrapers.target._target_scraperapi_get", fake_get)
+    monkeypatch.setattr("app.scrapers.target._parse_target_html", lambda *a, **k: [])
+
+    products = await scraper._fetch_listings_via_scraperapi(
+        "dog bed", 20, listing_pages=2
+    )
+    assert offsets_called == [0, 24]
+    assert len(products) == 2

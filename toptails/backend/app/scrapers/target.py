@@ -40,6 +40,11 @@ _RATING_ARIA_RE = re.compile(
 #   TARGET_SCRAPERAPI_TIMEOUT — seconds (default 180)
 #   TARGET_SCRAPERAPI_COUNTRY — e.g. us (default us)
 #   TARGET_SCRAPERAPI_TRY_REDSKY — default true
+#   TARGET_SCRAPERAPI_MAX_PAGES — pagination cap (default 2)
+
+_TARGET_PLP_PAGE_SIZE = 24
+# Public redsky key embedded in Target web clients (fallback when PLP HTML has no key).
+_FALLBACK_REDSKY_API_KEY = "ff457966e64d5e877fdbad070f276d18ecec4a01"
 
 
 def _env_truthy(name: str, *, default: bool = False) -> bool:
@@ -53,13 +58,18 @@ def _target_scraperapi_country() -> str:
     return (os.environ.get("TARGET_SCRAPERAPI_COUNTRY") or "us").strip() or "us"
 
 
-def _target_scraperapi_extra_params() -> dict[str, str]:
+def _target_scraperapi_extra_params(*, render: bool | None = None) -> dict[str, str]:
     params: dict[str, str] = {}
     if _env_truthy("TARGET_SCRAPERAPI_ULTRA_PREMIUM", default=True):
         params["ultra_premium"] = "true"
     elif _env_truthy("TARGET_SCRAPERAPI_PREMIUM"):
         params["premium"] = "true"
-    if _env_truthy("TARGET_SCRAPERAPI_RENDER", default=True):
+    use_render = (
+        _env_truthy("TARGET_SCRAPERAPI_RENDER", default=True)
+        if render is None
+        else render
+    )
+    if use_render:
         params["render"] = "true"
     return params
 
@@ -75,12 +85,34 @@ def _target_scraperapi_try_redsky() -> bool:
     return _env_truthy("TARGET_SCRAPERAPI_TRY_REDSKY", default=True)
 
 
+def _target_scraperapi_max_pages() -> int:
+    try:
+        n = int((os.environ.get("TARGET_SCRAPERAPI_MAX_PAGES") or "2").strip())
+        return max(1, min(n, 10))
+    except ValueError:
+        return 2
+
+
+def _target_plp_offsets(listing_pages: int) -> list[int]:
+    """Redsky/HTML offsets for each PLP page (24 products per page)."""
+    max_pages = min(max(1, listing_pages), _target_scraperapi_max_pages())
+    return [page_ix * _TARGET_PLP_PAGE_SIZE for page_ix in range(max_pages)]
+
+
 def _listing_url(query: str) -> str:
     """Search URL works reliably with render; category PLP often yields 0 relevant rows."""
     q = (query or "").strip().lower()
     if not q or q in ("dog bed", "dog beds", "dog_beds"):
         return SEARCH_URL.format(query="dog+bed")
     return SEARCH_URL.format(query=quote_plus(q.replace(" ", "+")))
+
+
+def _listing_url_nao(listing_base: str, offset: int) -> str:
+    listing_base = listing_base.strip()
+    if offset <= 0:
+        return listing_base
+    joiner = "&" if "?" in listing_base else "?"
+    return f"{listing_base}{joiner}Nao={offset}"
 
 
 def _is_sponsored_context(snippet: str) -> bool:
@@ -572,12 +604,32 @@ def _extract_redsky_key(html: str) -> Optional[str]:
     return None
 
 
-def _build_redsky_search_url(key: str, *, keyword: str = "dog bed", count: int = 24) -> str:
+def _resolve_redsky_key(html: str) -> str:
+    """Env override, embedded PLP key, env fallback, else known public key."""
+    env_key = (os.environ.get("TARGET_REDSKY_API_KEY") or "").strip()
+    if env_key:
+        return env_key
+    extracted = _extract_redsky_key(html) if html else None
+    if extracted:
+        return extracted
+    env_fallback = (os.environ.get("TARGET_REDSKY_FALLBACK_KEY") or "").strip()
+    if env_fallback:
+        return env_fallback
+    return _FALLBACK_REDSKY_API_KEY
+
+
+def _build_redsky_search_url(
+    key: str,
+    *,
+    keyword: str = "dog bed",
+    count: int = _TARGET_PLP_PAGE_SIZE,
+    offset: int = 0,
+) -> str:
     q = quote_plus(keyword)
     return (
         "https://redsky.target.com/redsky_aggregations/v1/web/plp_search_v2"
         f"?key={key}&channel=WEB&count={count}&keyword={q}"
-        "&offset=0&page=%2Fs&platform=desktop&visitor_id=0"
+        f"&offset={offset}&page=%2Fs&platform=desktop&visitor_id=0"
         "&pricing_store_id=3991&store_ids=3991"
     )
 
@@ -597,12 +649,14 @@ async def _target_scraperapi_get(
     client: httpx.AsyncClient,
     api_key: str,
     target_url: str,
+    *,
+    render: bool | None = None,
 ) -> tuple[Optional[str], int]:
     params: dict[str, str] = {
         "api_key": api_key,
         "url": target_url,
         "country_code": _target_scraperapi_country(),
-        **_target_scraperapi_extra_params(),
+        **_target_scraperapi_extra_params(render=render),
     }
     resp = await client.get("https://api.scraperapi.com/", params=params)
     body = resp.text if resp.content else ""
@@ -635,6 +689,45 @@ def products_from_redsky_for_tests(data: dict[str, Any], limit: int = 20) -> lis
 class TargetScraper(BaseScraper):
     SITE_NAME = "target"
 
+    async def _fetch_redsky_at_offset(
+        self,
+        client: httpx.AsyncClient,
+        api_key: str,
+        html: str,
+        seen_urls: set[str],
+        limit: int,
+        *,
+        keyword: str = "dog bed",
+        offset: int = 0,
+    ) -> list[ProductRaw]:
+        if not _target_scraperapi_try_redsky():
+            return []
+        key = _resolve_redsky_key(html)
+        rs_url = _build_redsky_search_url(
+            key, keyword=keyword, count=_TARGET_PLP_PAGE_SIZE, offset=offset
+        )
+        # Redsky is a JSON API — never use render=true (breaks JSON parsing).
+        body, status = await _target_scraperapi_get(
+            client, api_key, rs_url, render=False
+        )
+        if not body or status != 200:
+            logger.warning(
+                "Target redsky HTTP %s offset=%s",
+                status,
+                offset,
+            )
+            return []
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            logger.warning(
+                "Target redsky JSON decode failed offset=%s snippet=%s",
+                offset,
+                body[:120].replace("\n", " "),
+            )
+            return []
+        return _rows_from_redsky_walk(data, self, seen_urls, limit)
+
     async def _fetch_via_redsky(
         self,
         client: httpx.AsyncClient,
@@ -642,58 +735,101 @@ class TargetScraper(BaseScraper):
         html: str,
         seen_urls: set[str],
         limit: int,
+        *,
+        keyword: str = "dog bed",
+        listing_pages: int = 1,
     ) -> list[ProductRaw]:
-        if not _target_scraperapi_try_redsky():
-            return []
-        key = _extract_redsky_key(html)
-        if not key:
-            return []
-        rs_url = _build_redsky_search_url(key, keyword="dog bed", count=max(limit, 24))
-        body, status = await _target_scraperapi_get(client, api_key, rs_url)
-        if not body or status != 200:
-            return []
-        try:
-            data = json.loads(body)
-        except json.JSONDecodeError:
-            return []
-        return _rows_from_redsky_walk(data, self, seen_urls, limit)
+        products: list[ProductRaw] = []
+        max_pages = min(max(1, listing_pages), _target_scraperapi_max_pages())
+        count = _TARGET_PLP_PAGE_SIZE
+        for page_ix in range(max_pages):
+            batch = await self._fetch_redsky_at_offset(
+                client,
+                api_key,
+                html,
+                seen_urls,
+                limit,
+                keyword=keyword,
+                offset=page_ix * count,
+            )
+            if batch:
+                products.extend(batch)
+        return products
 
     async def _fetch_listings_via_scraperapi(
         self,
         query: str,
         limit: int,
+        listing_pages: int = 1,
     ) -> list[ProductRaw]:
         api_key = (os.environ.get("SCRAPERAPI_KEY") or "").strip()
         if not api_key:
             self._empty_scrape_note = "Target requires SCRAPERAPI_KEY in backend/.env"
             return []
 
-        listing_url = _listing_url(query)
+        listing_base = _listing_url(query)
+        search_query = (query or "dog bed").strip() or "dog bed"
         seen_urls: set[str] = set()
         products: list[ProductRaw] = []
         last_status = 0
         tout = _target_scraperapi_timeout_sec()
         timeout_cfg = httpx.Timeout(tout, connect=min(30.0, tout))
+        offsets = _target_plp_offsets(listing_pages)
+        max_pages = len(offsets)
+        page_cap = _FETCH_PAGE_CAP
+        redsky_html = ""
+        redsky_pages_ok = 0
+        html_pages_ok = 0
 
         try:
             async with httpx.AsyncClient(timeout=timeout_cfg) as client:
-                body, last_status = await _target_scraperapi_get(
-                    client, api_key, listing_url
+                shell_body, last_status = await _target_scraperapi_get(
+                    client, api_key, listing_base
                 )
-                if body and not _target_block_detected(body):
-                    products = _parse_target_html(
-                        body, self, seen_urls, _FETCH_PAGE_CAP
+                if shell_body and not _target_block_detected(shell_body):
+                    redsky_html = shell_body
+                elif shell_body and _target_block_detected(shell_body):
+                    logger.warning(
+                        "Target page-1 shell looks blocked; Redsky uses fallback API key"
                     )
-                    if not products:
-                        products = await self._fetch_via_redsky(
-                            client, api_key, body, seen_urls, _FETCH_PAGE_CAP
+
+                # Primary: always request every configured Redsky PLP page (offset 0, 24, …).
+                for offset in offsets:
+                    rs_batch = await self._fetch_redsky_at_offset(
+                        client,
+                        api_key,
+                        redsky_html,
+                        seen_urls,
+                        page_cap,
+                        keyword=search_query,
+                        offset=offset,
+                    )
+                    if rs_batch:
+                        products.extend(rs_batch)
+                        redsky_pages_ok += 1
+                    else:
+                        logger.warning(
+                            "Target redsky PLP page empty (offset=%s)",
+                            offset,
                         )
-                elif body:
-                    self._empty_scrape_note = (
-                        "Target ScraperAPI: block or empty shell detected. "
-                        "Use TARGET_SCRAPERAPI_RENDER=true and TARGET_SCRAPERAPI_ULTRA_PREMIUM=true."
-                    )
-                    logger.warning(self._empty_scrape_note)
+
+                # Supplement: merge hydrated HTML from each PLP URL (deduped via seen_urls).
+                for page_ix, offset in enumerate(offsets):
+                    if page_ix == 0 and redsky_html:
+                        body = redsky_html
+                    else:
+                        page_url = _listing_url_nao(listing_base, offset)
+                        body, last_status = await _target_scraperapi_get(
+                            client, api_key, page_url
+                        )
+                    if not body or _target_block_detected(body):
+                        continue
+                    batch = _parse_target_html(body, self, seen_urls, page_cap)
+                    if batch:
+                        n_before = len(products)
+                        products.extend(batch)
+                        if len(products) > n_before:
+                            html_pages_ok += 1
         except httpx.HTTPError as exc:
             note = (
                 "Target ScraperAPI HTTP error (%s). Check timeouts and connectivity."
@@ -707,17 +843,27 @@ class TargetScraper(BaseScraper):
             self._empty_scrape_note = (
                 "Target ScraperAPI: 0 products parsed "
                 f"(last_http={last_status}). "
-                "Use TARGET_SCRAPERAPI_ULTRA_PREMIUM=true and TARGET_SCRAPERAPI_RENDER=true."
+                "PLP needs TARGET_SCRAPERAPI_RENDER=true; Redsky JSON uses render=false. "
+                "Ensure TARGET_SCRAPERAPI_ULTRA_PREMIUM=true and TARGET_SCRAPERAPI_TRY_REDSKY=true."
             )
             logger.warning(self._empty_scrape_note)
         else:
+            if redsky_pages_ok < max_pages:
+                logger.warning(
+                    "Target: Redsky returned products for %s/%s PLP pages (offsets %s)",
+                    redsky_pages_ok,
+                    max_pages,
+                    offsets,
+                )
             logger.info(
-                "Target ScraperAPI: fetched %s product(s) from %s",
+                "Target ScraperAPI: %s unique product(s); redsky_pages=%s/%s html_pages=%s",
                 len(products),
-                listing_url[:80],
+                redsky_pages_ok,
+                max_pages,
+                html_pages_ok,
             )
 
-        return products[:limit]
+        return products
 
     async def fetch_listings(
         self,
@@ -730,4 +876,4 @@ class TargetScraper(BaseScraper):
         if not api_key:
             self._empty_scrape_note = "Target requires SCRAPERAPI_KEY in backend/.env"
             return []
-        return await self._fetch_listings_via_scraperapi(query, limit)
+        return await self._fetch_listings_via_scraperapi(query, limit, listing_pages)

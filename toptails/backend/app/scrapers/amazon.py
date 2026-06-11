@@ -22,6 +22,16 @@ STRUCTURED_SEARCH_URL = "https://api.scraperapi.com/structured/amazon/search"
 
 _ASIN_RE = re.compile(r"/(?:dp|gp/product)/([A-Z0-9]{10})", re.I)
 _SPONSORED_MARKERS = ("spons", "sspa", "picassoredirect")
+_SIZE_PHRASES = re.compile(
+    r"\b(?:"
+    r"extra[- ]?large|x[- ]?large|xx[- ]?large|xlarge|"
+    r"large|medium|small|mini|jumbo|queen|king|"
+    r"xl|xxl|xs|"
+    r"\d+[\"']?\s*[x×]\s*\d+[\"']?|"
+    r"\d+[\"']?\s*(?:inch|in\.?|in)\b"
+    r")\b",
+    re.I,
+)
 
 # Env (backend/.env) — Amazon via ScraperAPI only:
 #   SCRAPERAPI_KEY — required
@@ -29,6 +39,7 @@ _SPONSORED_MARKERS = ("spons", "sspa", "picassoredirect")
 #   AMAZON_SCRAPERAPI_TLD — default com
 #   AMAZON_SCRAPERAPI_COUNTRY — default us
 #   AMAZON_SCRAPERAPI_TIMEOUT — seconds (default 180)
+#   AMAZON_SCRAPERAPI_MAX_PAGES — pagination cap (default 2)
 # Fallback generic fetch (if structured disabled or empty):
 #   AMAZON_SCRAPERAPI_ULTRA_PREMIUM — default true
 #   AMAZON_SCRAPERAPI_RENDER — default false
@@ -68,11 +79,27 @@ def _amazon_scraperapi_timeout_sec() -> float:
         return 180.0
 
 
+def _amazon_scraperapi_max_pages() -> int:
+    try:
+        n = int((os.environ.get("AMAZON_SCRAPERAPI_MAX_PAGES") or "2").strip())
+        return max(1, min(n, 10))
+    except ValueError:
+        return 2
+
+
 def _listing_url(query: str) -> str:
     q = (query or "").strip().lower()
     if not q or q in ("dog bed", "dog beds", "dog_beds"):
         return SEARCH_URL.format(query="dog+bed")
     return SEARCH_URL.format(query=quote_plus(q.replace(" ", "+")))
+
+
+def _listing_url_page(listing_base: str, page: int) -> str:
+    listing_base = listing_base.strip()
+    if page <= 1:
+        return listing_base
+    joiner = "&" if "?" in listing_base else "?"
+    return f"{listing_base}{joiner}page={page}"
 
 
 def _extract_asin(url: str) -> str:
@@ -82,6 +109,25 @@ def _extract_asin(url: str) -> str:
 
 def _canonical_amazon_url(asin: str) -> str:
     return f"https://www.amazon.com/dp/{asin.upper()}"
+
+
+def _amazon_variant_group_id(title: str, asin: str) -> str:
+    """Group size/color variants (distinct ASINs) under one parent key for ranking."""
+    t = html_module.unescape(title or "").lower()
+    t = re.sub(r"\([^)]*\)", " ", t)
+    t = re.sub(
+        r"\d+[\"']?\s*[x×]\s*\d+[\"']?(?:\s*(?:inch|in\.?|in))?",
+        " ",
+        t,
+        flags=re.I,
+    )
+    t = re.sub(r"\d+[\"']?\s*(?:inch|in\.?)\b", " ", t, flags=re.I)
+    t = _SIZE_PHRASES.sub(" ", t)
+    t = re.sub(r"[^a-z0-9]+", "-", t).strip("-")
+    t = re.sub(r"-+", "-", t)
+    if len(t) >= 6:
+        return t[:100]
+    return asin.upper()
 
 
 def _is_sponsored_url(url: str) -> bool:
@@ -109,27 +155,45 @@ def _normalize_price_value(raw: Any) -> Optional[float]:
     return float(m.group()) if m else None
 
 
-def _best_by_asin(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _best_by_variant_group(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     best: dict[str, dict[str, Any]] = {}
     order: list[str] = []
-    no_asin: list[dict[str, Any]] = []
+    no_key: list[dict[str, Any]] = []
 
     for item in items:
-        asin = str(item.get("variant_group_id") or item.get("asin") or "").strip().upper()
-        if not asin:
-            no_asin.append(item)
+        pk = str(item.get("variant_group_id") or "").strip()
+        if not pk:
+            no_key.append(item)
             continue
-        if asin not in best:
-            best[asin] = item
-            order.append(asin)
+        if pk not in best:
+            best[pk] = item
+            order.append(pk)
             continue
-        cur = best[asin]
+        cur = best[pk]
         cur_reviews = int(cur.get("review_count") or 0)
         new_reviews = int(item.get("review_count") or 0)
         if new_reviews > cur_reviews:
-            best[asin] = item
+            best[pk] = item
 
-    return [best[asin] for asin in order] + no_asin
+    return [best[pk] for pk in order] + no_key
+
+
+def _collapse_products_by_variant_group(products: list[ProductRaw]) -> list[ProductRaw]:
+    """After multi-page merge: one row per product family (highest review count wins)."""
+    best: dict[str, ProductRaw] = {}
+    order: list[str] = []
+    for p in products:
+        key = (p.variant_group_id or p.product_url or p.title or "").strip()
+        if not key:
+            continue
+        if key not in best:
+            best[key] = p
+            order.append(key)
+            continue
+        cur = best[key]
+        if (p.review_count or 0) > (cur.review_count or 0):
+            best[key] = p
+    return [best[k] for k in order]
 
 
 def _product_from_raw(
@@ -179,7 +243,7 @@ def _product_from_raw(
         review_count=review_count,
         product_url=product_url,
         image_url=image_url,
-        variant_group_id=asin,
+        variant_group_id=raw.get("variant_group_id") or _amazon_variant_group_id(title, asin),
         scrape_status="ok",
     )
 
@@ -214,6 +278,7 @@ def _tile_from_structured_item(item: dict[str, Any]) -> Optional[dict[str, Any]]
             avg_rating = None
 
     image = str(item.get("image") or "")
+    parent_key = _amazon_variant_group_id(title, asin)
     return {
         "title": title[:200],
         "price": _normalize_price_value(item.get("price")),
@@ -221,7 +286,7 @@ def _tile_from_structured_item(item: dict[str, Any]) -> Optional[dict[str, Any]]
         "review_count": review_count,
         "imageUrl": _normalize_amazon_image_url(image) if image else None,
         "asin": asin,
-        "variant_group_id": asin,
+        "variant_group_id": parent_key,
         "href": _canonical_amazon_url(asin),
     }
 
@@ -244,7 +309,7 @@ def _products_from_structured(
                 tiles.append(raw)
 
     products: list[ProductRaw] = []
-    for item in _best_by_asin(tiles):
+    for item in _best_by_variant_group(tiles):
         if len(products) >= limit:
             break
         row = _product_from_raw(scraper, item, seen_urls)
@@ -319,6 +384,7 @@ def _products_from_search_html(
                 re.I,
             )
 
+        parent_key = _amazon_variant_group_id(title, asin)
         tiles.append(
             {
                 "title": title[:200],
@@ -329,13 +395,13 @@ def _products_from_search_html(
                 else 0,
                 "imageUrl": img_m.group(1) if img_m else None,
                 "asin": asin,
-                "variant_group_id": asin,
+                "variant_group_id": parent_key,
                 "href": _canonical_amazon_url(asin),
             }
         )
 
     products: list[ProductRaw] = []
-    for item in _best_by_asin(tiles):
+    for item in _best_by_variant_group(tiles):
         if len(products) >= limit:
             break
         row = _product_from_raw(scraper, item, seen_urls)
@@ -350,8 +416,7 @@ def _parse_amazon_html(
     seen_urls: set[str],
     limit: int,
 ) -> list[ProductRaw]:
-    batch = _products_from_search_html(html, scraper, seen_urls, limit)
-    return batch[:limit]
+    return _products_from_search_html(html, scraper, seen_urls, limit)
 
 
 def _amazon_block_detected(html: str) -> bool:
@@ -369,12 +434,15 @@ async def _amazon_structured_get(
     client: httpx.AsyncClient,
     api_key: str,
     query: str,
+    *,
+    page: int = 1,
 ) -> tuple[Optional[dict[str, Any]], int]:
     params = {
         "api_key": api_key,
         "query": query,
         "country_code": _amazon_scraperapi_country(),
         "tld": _amazon_scraperapi_tld(),
+        "page": str(page),
     }
     resp = await client.get(STRUCTURED_SEARCH_URL, params=params)
     if resp.status_code != 200:
@@ -441,6 +509,7 @@ class AmazonScraper(BaseScraper):
         self,
         query: str,
         limit: int,
+        listing_pages: int = 1,
     ) -> list[ProductRaw]:
         api_key = (os.environ.get("SCRAPERAPI_KEY") or "").strip()
         if not api_key:
@@ -452,46 +521,47 @@ class AmazonScraper(BaseScraper):
         last_status = 0
         tout = _amazon_scraperapi_timeout_sec()
         timeout_cfg = httpx.Timeout(tout, connect=min(30.0, tout))
-        listing_url = _listing_url(query)
+        listing_base = _listing_url(query)
         search_query = (query or "dog bed").strip() or "dog bed"
+        max_pages = min(max(1, listing_pages), _amazon_scraperapi_max_pages())
 
         try:
             async with httpx.AsyncClient(timeout=timeout_cfg) as client:
                 if _env_truthy("AMAZON_SCRAPERAPI_USE_STRUCTURED", default=True):
-                    data, last_status = await _amazon_structured_get(
-                        client, api_key, search_query
-                    )
-                    if data:
-                        products = _products_from_structured(
+                    for page_ix in range(1, max_pages + 1):
+                        data, last_status = await _amazon_structured_get(
+                            client, api_key, search_query, page=page_ix
+                        )
+                        if not data:
+                            break
+                        batch = _products_from_structured(
                             data, self, seen_urls, _FETCH_PAGE_CAP
                         )
-                        if products:
-                            logger.info(
-                                "Amazon structured ScraperAPI: fetched %s product(s) for %r",
-                                len(products),
-                                search_query,
-                            )
+                        if not batch:
+                            break
+                        products.extend(batch)
 
                 if not products:
-                    body, last_status = await _amazon_generic_get(
-                        client, api_key, listing_url
-                    )
-                    if body and _amazon_block_detected(body):
-                        self._empty_scrape_note = (
-                            "Amazon ScraperAPI: block or CAPTCHA detected on generic fetch. "
-                            "Keep AMAZON_SCRAPERAPI_USE_STRUCTURED=true."
+                    for page_ix in range(1, max_pages + 1):
+                        page_url = _listing_url_page(listing_base, page_ix)
+                        body, last_status = await _amazon_generic_get(
+                            client, api_key, page_url
                         )
-                        logger.warning(self._empty_scrape_note)
-                    elif body:
-                        products = _parse_amazon_html(
+                        if not body:
+                            break
+                        if _amazon_block_detected(body):
+                            self._empty_scrape_note = (
+                                "Amazon ScraperAPI: block or CAPTCHA detected on generic fetch. "
+                                "Keep AMAZON_SCRAPERAPI_USE_STRUCTURED=true."
+                            )
+                            logger.warning(self._empty_scrape_note)
+                            break
+                        batch = _parse_amazon_html(
                             body, self, seen_urls, _FETCH_PAGE_CAP
                         )
-                        if products:
-                            logger.info(
-                                "Amazon generic ScraperAPI: fetched %s product(s) from %s",
-                                len(products),
-                                listing_url[:80],
-                            )
+                        if not batch:
+                            break
+                        products.extend(batch)
         except httpx.HTTPError as exc:
             note = (
                 "Amazon ScraperAPI HTTP error (%s). Check timeouts and connectivity."
@@ -508,8 +578,18 @@ class AmazonScraper(BaseScraper):
                 "Use AMAZON_SCRAPERAPI_USE_STRUCTURED=true (default)."
             )
             logger.warning(self._empty_scrape_note)
+        else:
+            before = len(products)
+            products = _collapse_products_by_variant_group(products)
+            logger.info(
+                "Amazon ScraperAPI: fetched %s product(s) across %s page(s) "
+                "(%s after variant collapse)",
+                before,
+                max_pages,
+                len(products),
+            )
 
-        return products[:limit]
+        return products
 
     async def fetch_listings(
         self,
@@ -522,4 +602,4 @@ class AmazonScraper(BaseScraper):
         if not api_key:
             self._empty_scrape_note = "Amazon requires SCRAPERAPI_KEY in backend/.env"
             return []
-        return await self._fetch_listings_via_scraperapi(query, limit)
+        return await self._fetch_listings_via_scraperapi(query, limit, listing_pages)

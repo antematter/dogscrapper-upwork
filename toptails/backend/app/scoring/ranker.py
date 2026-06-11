@@ -85,7 +85,15 @@ def rank_products(
                 and _meets_listing_criteria(p)
             ]
         )
-        top = sorted(eligible, key=lambda p: p.trust_score, reverse=True)[:top_n]
+        top = sorted(
+            eligible,
+            key=lambda p: (
+                -(p.trust_score or 0),
+                -(p.review_count or 0),
+                -(p.avg_rating or 0),
+                (p.product_url or ""),
+            ),
+        )[:top_n]
         ranked[site] = top
 
     return ranked

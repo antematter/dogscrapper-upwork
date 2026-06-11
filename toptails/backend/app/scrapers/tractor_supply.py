@@ -88,7 +88,11 @@ _LINK_EXTRACT_JS = """(el) => {
     let priceText = '';
     let ratingRaw = '';
     let reviewRaw = '';
-    const imageUrl = img?.src || img?.getAttribute('data-src') || null;
+    const imageUrl = img?.getAttribute('data-src')
+        || img?.getAttribute('data-lazy-src')
+        || img?.getAttribute('data-original')
+        || img?.src
+        || null;
 
     for (let depth = 0; depth < 10 && root; depth++) {
         const stars = root.querySelector('[aria-label*="out of"], [aria-label*="star"], [aria-label*="rating"]');
@@ -135,6 +139,35 @@ def _normalize_tsc_url(href: str) -> str:
     if href.startswith("/"):
         return f"https://www.tractorsupply.com{href}"
     return f"https://www.tractorsupply.com/{href.lstrip('/')}"
+
+
+def _normalize_tsc_image_url(raw: str | None) -> Optional[str]:
+    if not raw or not str(raw).strip():
+        return None
+    url = str(raw).strip()
+    if url.startswith("//"):
+        return f"https:{url}"
+    if url.startswith("/"):
+        return f"https://www.tractorsupply.com{url}"
+    if url.startswith("http"):
+        return url
+    return None
+
+
+def _is_tsc_placeholder_image(url: str) -> bool:
+    low = url.lower()
+    return any(
+        token in low
+        for token in (
+            "placeholder",
+            "noimage",
+            "no-image",
+            "spacer",
+            "1x1",
+            "blank.gif",
+            "pixel.gif",
+        )
+    )
 
 
 def _env_truthy(name: str) -> bool:
@@ -267,7 +300,11 @@ async def _enrich_tractor_prices_via_pdp(
     if not _pdp_price_enrich_enabled():
         return
 
-    targets = [p for p in products if p.price is None and p.product_url]
+    targets = [
+        p
+        for p in products
+        if p.product_url and (p.price is None or not p.image_url)
+    ]
     if not targets:
         return
 
@@ -279,13 +316,19 @@ async def _enrich_tractor_prices_via_pdp(
             body, status = await _scraperapi_get(client, api_key, product.product_url or "")
             if not body or status != 200:
                 return
-            product.price = _price_from_pdp_html(body, scraper)
+            if product.price is None:
+                product.price = _price_from_pdp_html(body, scraper)
+            if not product.image_url:
+                product.image_url = _image_url_from_pdp_html(body)
 
     await asyncio.gather(*(fetch_one(p) for p in targets))
-    filled = sum(1 for p in targets if p.price is not None)
+    prices_filled = sum(1 for p in targets if p.price is not None)
+    images_filled = sum(1 for p in targets if p.image_url)
     logger.info(
-        "Tractor Supply: PDP price enrich %s/%s products",
-        filled,
+        "Tractor Supply: PDP enrich prices=%s/%s images=%s/%s",
+        prices_filled,
+        len(targets),
+        images_filled,
         len(targets),
     )
 
@@ -316,16 +359,61 @@ def _rating_review_for_entry(html: str, entry_id: str) -> tuple[str, str]:
     return rating_raw, review_raw
 
 
+def _image_url_from_img_tag(tag: str) -> Optional[str]:
+    for attr in ("data-src", "data-lazy-src", "data-original", "src"):
+        m = re.search(rf'{attr}="([^"]+)"', tag, re.I)
+        if not m:
+            continue
+        url = _normalize_tsc_image_url(m.group(1))
+        if url and not _is_tsc_placeholder_image(url):
+            return url
+    return None
+
+
 def _image_url_for_catalog_entry(html: str, entry_id: str) -> Optional[str]:
-    m = re.search(rf'id="img1_{re.escape(entry_id)}"[^>]+(?:data-src|src)="([^"]+)"', html, re.I)
-    if not m:
+    anchor = f"catalogEntry_img{entry_id}"
+    idx = html.find(anchor)
+    if idx < 0:
         return None
-    u = (m.group(1) or "").strip()
-    if u.startswith("//"):
-        return f"https:{u}"
-    if u.startswith("/"):
-        return f"https://www.tractorsupply.com{u}"
-    return u or None
+    chunk = html[idx : idx + 14_000]
+    img_tag = re.search(
+        rf'<img\b[^>]*\bid="img1_{re.escape(entry_id)}"[^>]*>',
+        chunk,
+        re.I | re.S,
+    )
+    if img_tag:
+        found = _image_url_from_img_tag(img_tag.group(0))
+        if found:
+            return found
+    for pat in (
+        rf'(?:data-src|data-lazy-src|src)="(//media\.tractorsupply\.com[^"]+)"',
+        rf'(?:data-src|data-lazy-src|src)="(https?://media\.tractorsupply\.com[^"]+)"',
+    ):
+        m = re.search(pat, chunk, re.I)
+        if m:
+            url = _normalize_tsc_image_url(m.group(1))
+            if url and not _is_tsc_placeholder_image(url):
+                return url
+    return None
+
+
+def _image_url_from_pdp_html(html: str) -> Optional[str]:
+    for pat in (
+        r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"',
+        r'<meta[^>]+content="([^"]+)"[^>]+property="og:image"',
+        r'"primaryImage(?:Url)?"\s*:\s*"([^"]+)"',
+        r'"imageUrl"\s*:\s*"(//media\.tractorsupply\.com[^"]+)"',
+        r'"imageUrl"\s*:\s*"(https?://media\.tractorsupply\.com[^"]+)"',
+        r'"thumbnail(?:Url)?"\s*:\s*"(//media\.tractorsupply\.com[^"]+)"',
+        r'"thumbnail(?:Url)?"\s*:\s*"(https?://media\.tractorsupply\.com[^"]+)"',
+    ):
+        m = re.search(pat, html, re.I | re.S)
+        if not m:
+            continue
+        url = _normalize_tsc_image_url(m.group(1))
+        if url and not _is_tsc_placeholder_image(url):
+            return url
+    return None
 
 
 def _parse_search_display_html(
@@ -441,7 +529,7 @@ def _product_from_raw(
         avg_rating=scraper.normalize_rating(raw.get("ratingRaw") or ""),
         review_count=review_count,
         product_url=product_url,
-        image_url=raw.get("imageUrl"),
+        image_url=_normalize_tsc_image_url(raw.get("imageUrl")),
         scrape_status="ok",
     )
 

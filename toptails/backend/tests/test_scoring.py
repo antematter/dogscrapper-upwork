@@ -332,6 +332,34 @@ def test_ranker_dedupes_chewy_variants_by_parent():
     assert ("Lesure Medium" in titles) ^ ("Lesure Large" in titles)
 
 
+def test_ranker_stable_tiebreak_by_review_count():
+    products = [
+        ProductRaw(
+            source_site="amazon",
+            title="Bed A",
+            trust_score=0.92,
+            scrape_status="ok",
+            avg_rating=4.6,
+            review_count=5000,
+            product_url="https://www.amazon.com/dp/B00AAAAAAA",
+            variant_group_id="bed-a",
+        ),
+        ProductRaw(
+            source_site="amazon",
+            title="Bed B",
+            trust_score=0.92,
+            scrape_status="ok",
+            avg_rating=4.6,
+            review_count=9000,
+            product_url="https://www.amazon.com/dp/B00BBBBBBB",
+            variant_group_id="bed-b",
+        ),
+    ]
+    ranked = rank_products(products, top_n=2)
+    assert ranked["amazon"][0].review_count == 9000
+    assert ranked["amazon"][1].review_count == 5000
+
+
 def test_score_products_computes_trust_scores():
     products = [
         ProductRaw(

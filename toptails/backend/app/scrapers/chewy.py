@@ -557,7 +557,7 @@ class ChewyScraper(BaseScraper):
                 max_pages,
             )
 
-        return products[:limit]
+        return products
 
     async def fetch_listings(
         self,

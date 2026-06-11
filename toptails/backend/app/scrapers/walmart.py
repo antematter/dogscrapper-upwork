@@ -29,6 +29,7 @@ _SPONSORED_MARKERS = ("sponsored=1", "spQs=", "wmlspartner", "TCID=OGS")
 #   WALMART_SCRAPERAPI_PREMIUM — fallback if ultra disabled
 #   WALMART_SCRAPERAPI_TIMEOUT — seconds (default 180)
 #   WALMART_SCRAPERAPI_COUNTRY — e.g. us (default us)
+#   WALMART_SCRAPERAPI_MAX_PAGES — pagination cap (default 2)
 
 
 def _env_truthy(name: str, *, default: bool = False) -> bool:
@@ -60,11 +61,27 @@ def _walmart_scraperapi_timeout_sec() -> float:
         return 180.0
 
 
+def _walmart_scraperapi_max_pages() -> int:
+    try:
+        n = int((os.environ.get("WALMART_SCRAPERAPI_MAX_PAGES") or "2").strip())
+        return max(1, min(n, 10))
+    except ValueError:
+        return 2
+
+
 def _listing_url(query: str) -> str:
     q = (query or "").strip().lower()
     if not q or q in ("dog bed", "dog beds", "dog_beds"):
         return SEARCH_URL.format(query="dog+bed")
     return SEARCH_URL.format(query=quote_plus(q.replace(" ", "+")))
+
+
+def _listing_url_page(listing_base: str, page: int) -> str:
+    listing_base = listing_base.strip()
+    if page <= 1:
+        return listing_base
+    joiner = "&" if "?" in listing_base else "?"
+    return f"{listing_base}{joiner}page={page}"
 
 
 def _is_sponsored_context(snippet: str) -> bool:
@@ -516,36 +533,43 @@ class WalmartScraper(BaseScraper):
         self,
         query: str,
         limit: int,
+        listing_pages: int = 1,
     ) -> list[ProductRaw]:
         api_key = (os.environ.get("SCRAPERAPI_KEY") or "").strip()
         if not api_key:
             self._empty_scrape_note = "Walmart requires SCRAPERAPI_KEY in backend/.env"
             return []
 
-        listing_url = _listing_url(query)
+        listing_base = _listing_url(query)
         seen_urls: set[str] = set()
         products: list[ProductRaw] = []
         last_status = 0
         tout = _walmart_scraperapi_timeout_sec()
         timeout_cfg = httpx.Timeout(tout, connect=min(30.0, tout))
+        max_pages = min(max(1, listing_pages), _walmart_scraperapi_max_pages())
 
         try:
             async with httpx.AsyncClient(timeout=timeout_cfg) as client:
-                body, last_status = await _walmart_scraperapi_get(
-                    client, api_key, listing_url
-                )
-                if not body:
-                    pass
-                elif _walmart_block_detected(body):
-                    self._empty_scrape_note = (
-                        "Walmart ScraperAPI: block or empty shell detected. "
-                        "Use WALMART_SCRAPERAPI_ULTRA_PREMIUM=true and keep WALMART_SCRAPERAPI_RENDER=false."
+                for page_ix in range(1, max_pages + 1):
+                    page_url = _listing_url_page(listing_base, page_ix)
+                    body, last_status = await _walmart_scraperapi_get(
+                        client, api_key, page_url
                     )
-                    logger.warning(self._empty_scrape_note)
-                else:
-                    products = _parse_walmart_html(
+                    if not body:
+                        break
+                    if _walmart_block_detected(body):
+                        self._empty_scrape_note = (
+                            "Walmart ScraperAPI: block or empty shell detected. "
+                            "Use WALMART_SCRAPERAPI_ULTRA_PREMIUM=true and keep WALMART_SCRAPERAPI_RENDER=false."
+                        )
+                        logger.warning(self._empty_scrape_note)
+                        break
+                    batch = _parse_walmart_html(
                         body, self, seen_urls, _FETCH_PAGE_CAP
                     )
+                    if not batch:
+                        break
+                    products.extend(batch)
         except httpx.HTTPError as exc:
             note = (
                 "Walmart ScraperAPI HTTP error (%s). Check timeouts and connectivity."
@@ -564,12 +588,12 @@ class WalmartScraper(BaseScraper):
             logger.warning(self._empty_scrape_note)
         else:
             logger.info(
-                "Walmart ScraperAPI: fetched %s product(s) from %s",
+                "Walmart ScraperAPI: fetched %s product(s) across %s page(s)",
                 len(products),
-                listing_url[:80],
+                max_pages,
             )
 
-        return products[:limit]
+        return products
 
     async def fetch_listings(
         self,
@@ -582,4 +606,4 @@ class WalmartScraper(BaseScraper):
         if not api_key:
             self._empty_scrape_note = "Walmart requires SCRAPERAPI_KEY in backend/.env"
             return []
-        return await self._fetch_listings_via_scraperapi(query, limit)
+        return await self._fetch_listings_via_scraperapi(query, limit, listing_pages)
